@@ -23,7 +23,8 @@ class BaseLLMBot:
             logger.info("Initializing Undetected Chrome Driver...")
             self.driver = uc.Chrome(
                 options=self.options,
-                user_data_dir=user_data_dir
+                user_data_dir=user_data_dir,
+                version_main=150
             )
             self.driver.set_page_load_timeout(60)
             logger.info("Chrome Driver initialized successfully.")

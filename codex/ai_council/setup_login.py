@@ -26,17 +26,17 @@ def main():
         if args.chrome_version:
             driver = uc.Chrome(options=options, user_data_dir=args.profile_dir, version_main=args.chrome_version)
         else:
-            driver = uc.Chrome(options=options, user_data_dir=args.profile_dir)
+            driver = uc.Chrome(options=options, user_data_dir=args.profile_dir, version_main=150)
             
         driver.set_page_load_timeout(60)
         
         logger.info("\n✅ 1/2. ChatGPT 로그인을 진행합니다...")
         driver.get("https://chatgpt.com")
-        input("👉 브라우저 창에서 ChatGPT 로그인을 완료한 후, 터미널 창에서 [ENTER] 키를 누르세요...")
+        input("브라우저 창에서 ChatGPT 로그인을 완료한 후, 터미널 창에서 [ENTER] 키를 누르세요...")
 
         logger.info("\n✅ 2/2. Claude 로그인을 진행합니다...")
         driver.get("https://claude.ai/new")
-        input("👉 브라우저 창에서 Claude 로그인을 완료한 후, 터미널 창에서 [ENTER] 키를 누르세요...")
+        input("브라우저 창에서 Claude 로그인을 완료한 후, 터미널 창에서 [ENTER] 키를 누르세요...")
 
         logger.info("\n🎉 모든 셋업이 완료되었습니다! 안전하게 브라우저를 종료합니다.")
         driver.quit()

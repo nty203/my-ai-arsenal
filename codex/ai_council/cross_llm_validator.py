@@ -51,15 +51,11 @@ class ChatGPTBot(BaseLLMBot):
             if login_buttons or login_links:
                 logger.info("ChatGPT login required. Waiting up to 600 seconds for manual login on the browser window...")
                 wait_long = WebDriverWait(self.driver, 600)
-                # Wait until both buttons and links disappear (meaning user logged in)
-                if login_buttons:
-                    wait_long.until_not(EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='login-button']")))
-                if login_links:
-                    def no_login_links(driver):
-                        return not any("login" in (e.get_attribute("href") or "").lower() for e in driver.find_elements(By.TAG_NAME, "a"))
-                    wait_long.until(no_login_links)
                 
-                logger.info("ChatGPT login successful (login elements disappeared).")
+                # Wait until the input box becomes interactable, which proves we are logged in
+                wait_long.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "textarea#prompt-textarea, div#prompt-textarea, [contenteditable='true']")))
+                
+                logger.info("ChatGPT login successful (input area is ready).")
                 time.sleep(3) # Wait for reload after login
         except Exception as e:
             logger.warning(f"Error while checking login state: {e}")

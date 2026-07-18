@@ -141,7 +141,11 @@ class ChatGPTBot(BaseLLMBot):
         while time.time() - start_time < timeout:
             try:
                 responses = self.driver.find_elements(By.CSS_SELECTOR,
-                    "div[data-message-author-role='assistant']")
+                    "div[data-message-author-role='assistant'], div.markdown, article div.prose, div.agent-turn")
+                if not responses:
+                    # Fallback to article elements or body if specific selectors fail
+                    responses = self.driver.find_elements(By.CSS_SELECTOR, "article")
+
                 if not responses:
                     time.sleep(1)
                     continue
@@ -155,7 +159,7 @@ class ChatGPTBot(BaseLLMBot):
                 else:
                     stable_count += 1
 
-                if stable_count > 10 and last_text_len > 0:
+                if stable_count > 6 and last_text_len > 0:
                     return current_text
                 time.sleep(1)
             except Exception as e:

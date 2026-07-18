@@ -209,25 +209,21 @@ class ClaudeBot(BaseLLMBot):
         
         while time.time() - start_time < timeout:
             try:
-                # Look for Claude's response blocks
-                responses = self.driver.find_elements(By.CSS_SELECTOR, "div.font-claude-message, div.font-user-message + div, .ProseMirror:not([contenteditable='true'])")
+                body_text = self.driver.find_element(By.TAG_NAME, "body").text
                 
-                if not responses:
-                    time.sleep(2)
-                    continue
-                
-                latest_response = responses[-1]
-                current_text = latest_response.text
-                
-                if len(current_text) > last_text_len:
-                    last_text_len = len(current_text)
+                if len(body_text) > last_text_len:
+                    last_text_len = len(body_text)
                     stable_count = 0
                 else:
                     stable_count += 1
                 
                 # If stable for 10 seconds and has text, we consider it done
                 if stable_count > 10 and last_text_len > 0:
-                    return current_text
+                    responses = self.driver.find_elements(By.CSS_SELECTOR, "div.font-claude-message, div.font-user-message + div, .ProseMirror:not([contenteditable='true'])")
+                    if responses:
+                        return responses[-1].text
+                    else:
+                        return body_text
                 time.sleep(1)
             except Exception as e:
                 logger.warning(f"Error reading response: {e}")

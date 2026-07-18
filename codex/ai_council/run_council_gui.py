@@ -5,7 +5,7 @@ import subprocess
 import traceback
 
 def ignore_files(dir, files):
-    return [f for f in files if f.startswith('Singleton') or f.endswith('.lock') or f == 'Local State']
+    return [f for f in files if f.startswith('Singleton') or f.endswith('.lock')]
 
 def main():
     try:

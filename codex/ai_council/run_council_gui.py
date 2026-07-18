@@ -42,6 +42,13 @@ def main():
         if result.stderr:
             print(result.stderr)
             
+        print("Syncing updated profile back to original directory to persist logins...")
+        try:
+            shutil.copytree(user_data_dir_copy, user_data_dir, dirs_exist_ok=True, ignore=ignore_files)
+            print("Profile synced successfully.")
+        except Exception as e:
+            print(f"Failed to sync profile: {e}")
+            
         print("SUCCESS")
     except Exception as e:
         traceback.print_exc()

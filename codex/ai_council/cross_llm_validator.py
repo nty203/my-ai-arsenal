@@ -219,20 +219,8 @@ class ClaudeBot(BaseLLMBot):
                 latest_response = responses[-1]
                 current_text = latest_response.text
                 
-                # Check for streaming indicators if they exist
-                is_streaming = False
-                try:
-                    streaming_elements = self.driver.find_elements(By.CSS_SELECTOR, "[data-is-streaming='true']")
-                    if streaming_elements:
-                        is_streaming = True
-                except:
-                    pass
-                
                 if len(current_text) > last_text_len:
                     last_text_len = len(current_text)
-                    stable_count = 0
-                elif is_streaming:
-                    # Still streaming but text hasn't updated this second
                     stable_count = 0
                 else:
                     stable_count += 1

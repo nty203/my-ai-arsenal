@@ -9,7 +9,7 @@ def ignore_files(dir, files):
 
 def main():
     try:
-        user_data_dir = os.path.abspath('./chrome_profile')
+        user_data_dir = os.path.abspath('C:/Users/tzero/.gemini/config/skills/ai_council/chrome_profile')
         user_data_dir_copy = os.path.abspath('./chrome_profile_copy')
 
         print(f"Original Profile: {user_data_dir}")
@@ -27,8 +27,9 @@ def main():
         shutil.copytree(user_data_dir, user_data_dir_copy, ignore=ignore_files)
 
         # Build command to run the main council script
+        python_exe = os.path.abspath('C:/Users/tzero/Documents/ai/youtube-to-wiki/.venv/Scripts/python.exe')
         cmd = [
-            sys.executable,
+            python_exe,
             "council_runner.py",
             "-p", "council_prompt.txt",
             "-o", "council_result.md",

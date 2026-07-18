@@ -42,12 +42,14 @@ class ChatGPTBot(BaseLLMBot):
     def start_new_chat(self):
         logger.info("Navigating to ChatGPT...")
         self.driver.get("https://chatgpt.com/")
-        time.sleep(4)
+        
+        logger.info("Waiting for ChatGPT input box... If you are not logged in, please log in now on the browser window.")
+        wait_long = WebDriverWait(self.driver, 600)
         try:
-            self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[contenteditable='true'], textarea#prompt-textarea")))
+            wait_long.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[contenteditable='true'], textarea#prompt-textarea")))
             logger.info("ChatGPT loaded successfully.")
         except Exception as e:
-            logger.error("Could not load ChatGPT. Are you logged in?")
+            logger.error("Timed out waiting for ChatGPT login.")
             raise e
 
     def send_message(self, message):
@@ -124,13 +126,15 @@ class ClaudeBot(BaseLLMBot):
     def start_new_chat(self):
         logger.info("Navigating to Claude...")
         self.driver.get("https://claude.ai/new")
-        time.sleep(4)
+        
+        logger.info("Waiting for Claude input box... If you are not logged in, please log in now on the browser window.")
+        wait_long = WebDriverWait(self.driver, 600)
         try:
-            self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[contenteditable='true']")))
+            wait_long.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[contenteditable='true']")))
             logger.info("Claude loaded successfully.")
         except Exception as e:
             self.driver.save_screenshot("claude_error.png")
-            logger.error("Could not load Claude. Are you logged in? Screenshot saved to claude_error.png")
+            logger.error("Timed out waiting for Claude login. Screenshot saved.")
             raise e
 
     def send_message(self, message):

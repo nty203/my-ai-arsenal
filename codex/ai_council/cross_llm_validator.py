@@ -209,8 +209,8 @@ class ClaudeBot(BaseLLMBot):
         
         while time.time() - start_time < timeout:
             try:
-                # Look for Claude's response blocks (usually they have 'grid' and text inside, or we can just grab the last large text block)
-                responses = self.driver.find_elements(By.CSS_SELECTOR, "div.font-user-message + div, .ProseMirror:not([contenteditable='true'])")
+                # Look for Claude's response blocks
+                responses = self.driver.find_elements(By.CSS_SELECTOR, "div.font-claude-message, div.font-user-message + div, .ProseMirror:not([contenteditable='true'])")
                 
                 if not responses:
                     time.sleep(2)

@@ -74,24 +74,54 @@ class ChatGPTBot(BaseLLMBot):
         self.driver.get("https://chatgpt.com/")
         time.sleep(4)
 
-        # Check login state: if input box is already visible, we're logged in
+        # 1. Check if 'Continue as account' / '내 계정으로 계속' popup is present and click it automatically
         try:
-            input_box = WebDriverWait(self.driver, 8).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR,
-                    "div#prompt-textarea, textarea#prompt-textarea, div[contenteditable='true']"))
-            )
-            logger.info("ChatGPT already logged in (input area detected).")
-            return
-        except Exception:
-            pass
+            continue_btns = self.driver.find_elements(By.XPATH,
+                "//button[contains(., '계정으로 계속') or contains(., 'Continue as') or contains(., '계정으로')] | //a[contains(., '계정으로')]")
+            if continue_btns and continue_btns[0].is_displayed():
+                logger.info("Found 'Continue as account' popup. Clicking automatically...")
+                self.driver.execute_script("arguments[0].click();", continue_btns[0])
+                time.sleep(4)
+        except Exception as e:
+            logger.warning(f"Error checking continue button: {e}")
 
-        # Not logged in: wait for user to login manually
-        logger.info("ChatGPT login required. Waiting up to 600 seconds for manual login...")
-        wait_long = WebDriverWait(self.driver, 600)
-        wait_long.until(EC.presence_of_element_located((By.CSS_SELECTOR,
+        # 2. Check if logged in vs Guest mode
+        try:
+            login_btns = [e for e in self.driver.find_elements(By.CSS_SELECTOR, "[data-testid='login-button'], button[data-testid='welcome-login-button']") if e.is_displayed()]
+            login_links = [e for e in self.driver.find_elements(By.XPATH, "//button[contains(., 'Log in') or contains(., '로그인')] | //a[contains(., 'Log in') or contains(., '로그인')]") if e.is_displayed()]
+
+            if login_btns or login_links:
+                logger.info("ChatGPT in guest mode. Waiting for login or 'Continue as account' popup...")
+                start_w = time.time()
+                while time.time() - start_w < 600:
+                    # Check for 'Continue as account' popup
+                    try:
+                        c_btns = self.driver.find_elements(By.XPATH, "//button[contains(., '계정으로') or contains(., 'Continue as')]")
+                        if c_btns and c_btns[0].is_displayed():
+                            logger.info("Clicking 'Continue as account' popup during wait...")
+                            self.driver.execute_script("arguments[0].click();", c_btns[0])
+                            time.sleep(4)
+                    except Exception:
+                        pass
+
+                    # Check if logged in (profile button / user avatar present)
+                    profile = self.driver.find_elements(By.CSS_SELECTOR, "[data-testid='profile-button'], button[aria-label*='User profile'], button[aria-label*='프로필'], div.avatar")
+                    if profile and any(p.is_displayed() for p in profile):
+                        logger.info("ChatGPT login verified.")
+                        break
+
+                    # Check if login buttons gone
+                    l_btns = [e for e in self.driver.find_elements(By.CSS_SELECTOR, "[data-testid='login-button']") if e.is_displayed()]
+                    if not l_btns:
+                        break
+
+                    time.sleep(2)
+        except Exception as e:
+            logger.warning(f"Error checking login state: {e}")
+
+        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,
             "div#prompt-textarea, textarea#prompt-textarea, div[contenteditable='true']")))
-        logger.info("ChatGPT login successful.")
-        time.sleep(3)
+        logger.info("ChatGPT input box ready.")
 
     def send_message(self, message):
         logger.info(f"Sending message to ChatGPT: {message[:50]}...")

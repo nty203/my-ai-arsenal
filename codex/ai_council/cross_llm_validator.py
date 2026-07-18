@@ -52,8 +52,8 @@ class ChatGPTBot(BaseLLMBot):
                 logger.info("ChatGPT login required. Waiting up to 600 seconds for manual login on the browser window...")
                 wait_long = WebDriverWait(self.driver, 600)
                 
-                # Wait until the input box becomes interactable, which proves we are logged in
-                wait_long.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "textarea#prompt-textarea, div#prompt-textarea, [contenteditable='true']")))
+                # Wait until the input box becomes present, which proves we are logged in
+                wait_long.until(EC.presence_of_element_located((By.CSS_SELECTOR, "textarea#prompt-textarea, div#prompt-textarea, [contenteditable='true']")))
                 
                 logger.info("ChatGPT login successful (input area is ready).")
                 time.sleep(3) # Wait for reload after login

@@ -74,14 +74,31 @@ class ChatGPTBot(BaseLLMBot):
         self.driver.get("https://chatgpt.com/")
         time.sleep(4)
 
-        # 1. Check if 'Continue as account' / '내 계정으로 계속' popup is present and click it automatically
+        # 1. Check if 'Continue as account' / '내 계정으로 계속' popup (including Google One-Tap iframe) is present
         try:
+            # Check main document first
             continue_btns = self.driver.find_elements(By.XPATH,
-                "//button[contains(., '계정으로 계속') or contains(., 'Continue as') or contains(., '계정으로')] | //a[contains(., '계정으로')]")
+                "//button[contains(., '계정으로') or contains(., 'Continue as')] | //div[contains(., '계정으로 계속')]")
             if continue_btns and continue_btns[0].is_displayed():
-                logger.info("Found 'Continue as account' popup. Clicking automatically...")
+                logger.info("Found 'Continue as account' button in main doc. Clicking automatically...")
                 self.driver.execute_script("arguments[0].click();", continue_btns[0])
                 time.sleep(4)
+
+            # Check inside Google One-Tap iframe
+            iframes = self.driver.find_elements(By.CSS_SELECTOR, "iframe[src*='accounts.google.com'], iframe[title*='Google']")
+            for iframe in iframes:
+                try:
+                    self.driver.switch_to.frame(iframe)
+                    g_btns = self.driver.find_elements(By.XPATH, "//div[contains(text(), '계정으로') or contains(text(), 'Continue as')] | //span[contains(text(), '계정으로') or contains(text(), 'Continue as')] | //button")
+                    if g_btns:
+                        logger.info("Found 'Continue as account' inside Google One-Tap iframe! Clicking...")
+                        self.driver.execute_script("arguments[0].click();", g_btns[0])
+                        self.driver.switch_to.default_content()
+                        time.sleep(4)
+                        break
+                    self.driver.switch_to.default_content()
+                except Exception:
+                    self.driver.switch_to.default_content()
         except Exception as e:
             logger.warning(f"Error checking continue button: {e}")
 

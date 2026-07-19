@@ -69,6 +69,36 @@ class BaseLLMBot:
 
 
 class ChatGPTBot(BaseLLMBot):
+    # Multi-layer Selector Chain for Resilience
+    INPUT_SELECTORS = [
+        (By.CSS_SELECTOR, "div#prompt-textarea"),
+        (By.CSS_SELECTOR, "textarea#prompt-textarea"),
+        (By.CSS_SELECTOR, "div[contenteditable='true']"),
+        (By.CSS_SELECTOR, "[data-testid='textbox']")
+    ]
+
+    RESPONSE_SELECTORS = [
+        (By.CSS_SELECTOR, "div[data-message-author-role='assistant']"),
+        (By.CSS_SELECTOR, "div.markdown"),
+        (By.CSS_SELECTOR, "article div.prose"),
+        (By.CSS_SELECTOR, "div.agent-turn"),
+        (By.CSS_SELECTOR, "article")
+    ]
+
+    def _find_element_chain(self, selectors, timeout=10):
+        start = time.time()
+        while time.time() - start < timeout:
+            for by, query in selectors:
+                try:
+                    elems = self.driver.find_elements(by, query)
+                    visible = [e for e in elems if e.is_displayed()]
+                    if visible:
+                        return visible[0]
+                except Exception:
+                    continue
+            time.sleep(0.5)
+        raise TimeoutError("Multi-layer selector chain failed to find element.")
+
     def start_new_chat(self):
         logger.info("Navigating to ChatGPT...")
         self.driver.get("https://chatgpt.com/")
@@ -76,7 +106,6 @@ class ChatGPTBot(BaseLLMBot):
 
         # 1. Check if 'Continue as account' / '내 계정으로 계속' popup (including Google One-Tap iframe) is present
         try:
-            # Check main document first
             continue_btns = self.driver.find_elements(By.XPATH,
                 "//button[contains(., '계정으로') or contains(., 'Continue as')] | //div[contains(., '계정으로 계속')]")
             if continue_btns and continue_btns[0].is_displayed():
@@ -84,7 +113,6 @@ class ChatGPTBot(BaseLLMBot):
                 self.driver.execute_script("arguments[0].click();", continue_btns[0])
                 time.sleep(4)
 
-            # Check inside Google One-Tap iframe
             iframes = self.driver.find_elements(By.CSS_SELECTOR, "iframe[src*='accounts.google.com'], iframe[title*='Google']")
             for iframe in iframes:
                 try:
@@ -111,7 +139,6 @@ class ChatGPTBot(BaseLLMBot):
                 logger.info("ChatGPT in guest mode. Waiting for login or 'Continue as account' popup...")
                 start_w = time.time()
                 while time.time() - start_w < 600:
-                    # Check for 'Continue as account' popup
                     try:
                         c_btns = self.driver.find_elements(By.XPATH, "//button[contains(., '계정으로') or contains(., 'Continue as')]")
                         if c_btns and c_btns[0].is_displayed():
@@ -121,13 +148,11 @@ class ChatGPTBot(BaseLLMBot):
                     except Exception:
                         pass
 
-                    # Check if logged in (profile button / user avatar present)
                     profile = self.driver.find_elements(By.CSS_SELECTOR, "[data-testid='profile-button'], button[aria-label*='User profile'], button[aria-label*='프로필'], div.avatar")
                     if profile and any(p.is_displayed() for p in profile):
                         logger.info("ChatGPT login verified.")
                         break
 
-                    # Check if login buttons gone
                     l_btns = [e for e in self.driver.find_elements(By.CSS_SELECTOR, "[data-testid='login-button']") if e.is_displayed()]
                     if not l_btns:
                         break
@@ -136,15 +161,13 @@ class ChatGPTBot(BaseLLMBot):
         except Exception as e:
             logger.warning(f"Error checking login state: {e}")
 
-        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,
-            "div#prompt-textarea, textarea#prompt-textarea, div[contenteditable='true']")))
+        self._find_element_chain(self.INPUT_SELECTORS, timeout=30)
         logger.info("ChatGPT input box ready.")
 
     def send_message(self, message):
         logger.info(f"Sending message to ChatGPT: {message[:50]}...")
         try:
-            input_box = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,
-                "div#prompt-textarea, textarea#prompt-textarea, div[contenteditable='true']")))
+            input_box = self._find_element_chain(self.INPUT_SELECTORS, timeout=20)
             self.driver.execute_script("arguments[0].focus(); arguments[0].click();", input_box)
             time.sleep(0.5)
 
@@ -187,11 +210,12 @@ class ChatGPTBot(BaseLLMBot):
 
         while time.time() - start_time < timeout:
             try:
-                responses = self.driver.find_elements(By.CSS_SELECTOR,
-                    "div[data-message-author-role='assistant'], div.markdown, article div.prose, div.agent-turn")
-                if not responses:
-                    # Fallback to article elements or body if specific selectors fail
-                    responses = self.driver.find_elements(By.CSS_SELECTOR, "article")
+                responses = []
+                for by, query in self.RESPONSE_SELECTORS:
+                    elems = self.driver.find_elements(by, query)
+                    if elems:
+                        responses = elems
+                        break
 
                 if not responses:
                     time.sleep(1)
@@ -217,22 +241,45 @@ class ChatGPTBot(BaseLLMBot):
 
 
 class ClaudeBot(BaseLLMBot):
+    INPUT_SELECTORS = [
+        (By.CSS_SELECTOR, "div[contenteditable='true']"),
+        (By.CSS_SELECTOR, "div.ProseMirror"),
+        (By.CSS_SELECTOR, "[role='textbox']")
+    ]
+
+    RESPONSE_SELECTORS = [
+        (By.CSS_SELECTOR, "div.font-claude-message"),
+        (By.CSS_SELECTOR, "[data-testid='chat-message-content']"),
+        (By.CSS_SELECTOR, "div.grid-cols-1"),
+        (By.TAG_NAME, "body")
+    ]
+
+    def _find_element_chain(self, selectors, timeout=10):
+        start = time.time()
+        while time.time() - start < timeout:
+            for by, query in selectors:
+                try:
+                    elems = self.driver.find_elements(by, query)
+                    visible = [e for e in elems if e.is_displayed()]
+                    if visible:
+                        return visible[0]
+                except Exception:
+                    continue
+            time.sleep(0.5)
+        raise TimeoutError("Multi-layer selector chain failed to find Claude element.")
+
     def start_new_chat(self):
         logger.info("Navigating to Claude...")
         self.driver.get("https://claude.ai/new")
         time.sleep(4)
 
-        # Check if already logged in
         try:
-            WebDriverWait(self.driver, 8).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "div[contenteditable='true']"))
-            )
+            self._find_element_chain(self.INPUT_SELECTORS, timeout=8)
             logger.info("Claude already logged in (input area detected).")
             return
         except Exception:
             pass
 
-        # Not logged in: wait for user to login manually
         logger.info("Claude login required. Waiting up to 600 seconds for manual login...")
         wait_long = WebDriverWait(self.driver, 600)
         try:
@@ -246,8 +293,7 @@ class ClaudeBot(BaseLLMBot):
     def send_message(self, message):
         logger.info(f"Sending message to Claude: {message[:50]}...")
         try:
-            input_box = self.wait.until(EC.presence_of_element_located(
-                (By.CSS_SELECTOR, "div[contenteditable='true']")))
+            input_box = self._find_element_chain(self.INPUT_SELECTORS, timeout=20)
             self.driver.execute_script("arguments[0].focus(); arguments[0].click();", input_box)
             time.sleep(0.5)
 
@@ -291,11 +337,10 @@ class ClaudeBot(BaseLLMBot):
                     stable_count += 1
 
                 if stable_count > 10 and last_text_len > 0:
-                    # Try to extract just the assistant response
-                    responses = self.driver.find_elements(By.CSS_SELECTOR,
-                        "div.font-claude-message, [data-testid='chat-message-content']")
-                    if responses:
-                        return responses[-1].text
+                    for by, query in self.RESPONSE_SELECTORS[:-1]:
+                        responses = self.driver.find_elements(by, query)
+                        if responses:
+                            return responses[-1].text
                     return body_text
                 time.sleep(1)
             except Exception as e:

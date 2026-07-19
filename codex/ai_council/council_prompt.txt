@@ -1,1 +1,19 @@
-Hello! I am just testing if the browser automation scripts from my-ai-arsenal are working correctly. Please reply with "Browser automation is successful!"
+[안건: ai_council 스킬 및 크로스 LLM 브라우저 자동화 파이프라인 심층 코드 리뷰 및 평가]
+
+저희가 구현한 `ai_council` 스킬의 핵심 기술적 아키텍처 및 파이썬 소스 코드 구조는 다음과 같습니다:
+
+1. Windows 로그인 세션 영구 유지 (App-Bound Encryption 문제 극복):
+   - 문제: `undetected_chromedriver`는 바이너리를 동적 패치하여 윈도우 DPAPI `Local State` 쿠키 암호화 키를 매번 무효화(로그아웃)시킴.
+   - 해결: 표준 `webdriver.Chrome` 사용 + CDP `Page.addScriptToEvaluateOnNewDocument`로 `navigator.webdriver` 플래그 제거 + `Local State` 파일 보존 사본 동기화.
+
+2. Google One-Tap iframe 감지 및 자동 클릭:
+   - ChatGPT 진입 시 독립된 구글 보안 영역(`iframe[src*='accounts.google.com']`) 내부로 Frame Switch하여 [계정으로 계속] 버튼 자동 감지 및 원터치 로그인 연동.
+
+3. 윈도우 대화형 GUI 세션 보장:
+   - Session 0 백그라운드 락 방지를 위해 Windows 스케줄러(`schtasks`)를 통해 대화형 디스플레이 세션에서 `run_council_gui.py` 실행.
+
+4. 텍스트 입력 및 수집 알고리즘:
+   - JS ClipboardEvent 인젝션으로 특수문자/개행 손실 방지.
+   - 텍스트 길이 변화 안정성(Stability counter)을 기반으로 스트리밍 종료 시점을 실시간 감지하여 결과 추출.
+
+위 아키텍처와 구현 방식에 대해 1) 아키텍처적 장점, 2) 예외 처리 및 잠재적 리스크/한계점, 3) 향후 유지보수를 위한 구체적인 발전 방향을 기술적으로 매우 상세하고 깊이 있게 리뷰해 주세요. 반드시 답변 끝에 "Browser automation is successful!" 문구를 포함해 주세요.

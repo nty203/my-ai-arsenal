@@ -1,9 +1,9 @@
 ---
-name: notion_fable5_automation
+name: notionAI
 description: Notion AI (Fable 5) 봇과 자동으로 대화하고, 생성된 아티팩트(파일)를 완벽하게 로컬로 추출하는 강력한 자동화 스킬입니다.
 ---
 
-# 🤖 Notion Fable 5 Automation Skill
+# 🤖 notionAI Skill
 
 이 스킬은 노션 AI(Fable 5)를 브라우저 자동화(Playwright)를 통해 제어하여 다음과 같은 작업을 수행합니다.
 1. 사용자 프롬프트를 전송하고 AI의 답변을 대기합니다.

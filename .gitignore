@@ -1,4 +1,4 @@
-﻿# Chrome User Data Profiles
+# Chrome User Data Profiles
 **/chrome_profile_copy/
 **/chrome_profile/
 codex/ai_council/chrome_profile_copy/
@@ -17,3 +17,15 @@ venv/
 # OS/System files
 .DS_Store
 Thumbs.db
+
+# Node modules
+**/node_modules/
+node_modules/
+
+# NotionAI Skill output/temps
+**/last_artifact.json
+**/last_page.md
+**/last_response.png
+**/last_result.txt
+**/model_choice.json
+

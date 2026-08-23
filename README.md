@@ -52,7 +52,8 @@
 my-ai-arsenal/
 ├── skills/           # Gemini & Claude 범용 공식 표준 규격 (SKILL.md)
 │   ├── ai_council/             # 다중 LLM 의견 종합 및 의사결정 평의회 스킬
-│   ├── autonomous-dev-loop/    # 범용 자율 개발·자가복구 루프
+│   ├── autonomous-dev-starter/ # 권장 단일 자율 개발 진입점
+│   ├── autonomous-dev-loop/    # local_cli용 범용 자율 개발·자가복구 루프
 │   └── run-project/            # 프로젝트 10단계 마스터 파이프라인 스킬
 └── codex/            # Codex / Cursor 전용 규격
     └── ai_council/
@@ -70,6 +71,7 @@ my-ai-arsenal/
 Claude와 Gemini(Antigravity 등)는 [Agent Skills](http://agentskills.io) 표준인 `SKILL.md` 구조를 완벽히 지원합니다.
 - **설치법**: 에이전트에게 아래 깃허브 경로를 주면서 **"스킬 설치해줘"** 라고 지시하세요.
   - `ai_council`: `https://github.com/nty203/my-ai-arsenal/tree/master/skills/ai_council`
+  - `autonomous-dev-starter`: `https://github.com/nty203/my-ai-arsenal/tree/master/skills/autonomous-dev-starter`
   - `autonomous-dev-loop`: `https://github.com/nty203/my-ai-arsenal/tree/master/skills/autonomous-dev-loop`
   - `run-project`: `https://github.com/nty203/my-ai-arsenal/tree/master/skills/run-project`
 
@@ -83,3 +85,34 @@ Claude와 Gemini(Antigravity 등)는 [Agent Skills](http://agentskills.io) 표�
 ```bash
 python setup_login.py
 ```
+
+
+
+---
+
+## ⭐ 권장 진입점: `autonomous-dev-starter`
+
+새 자율 개발 프로젝트는 이제 이 스킬 하나로 시작합니다.
+
+- 경로: `skills/autonomous-dev-starter/SKILL.md`
+- 사용: **`개발 시작`**
+- 역할: 프로젝트 진단 → Git/비밀파일/Quality Gate 설정 → 루프 문서 설치 → 실행 방식 선택 → preflight → 1회 파일럿 → 실제 루프 연결
+
+### 실행 방식
+
+- `chatgpt_remote`: ChatGPT Automation + AI Folder Remote
+- `local_cli`: Codex / Claude / Gemini / agy 등 검증된 로컬 headless CLI + `loop.ps1`
+- `auto`: ChatGPT에서 Remote가 가능하면 Remote를 우선하고, 아니면 설치된 CLI를 검증해 선택
+
+예: `매일 오후 12시에 ChatGPT Remote로 개발 시작`, `Codex CLI로 개발 시작`.
+사용자 READY 작업이 없더라도 `auto_continue: true`이면 STATUS/DESIGN에서 다음 최소 작업 하나를 선택해 계속합니다.
+
+`autonomous-dev-loop`는 `local_cli` 실행의 내부 백엔드로 유지합니다. 일반 사용자는 `autonomous-dev-starter`만 진입점으로 사용하면 됩니다.
+
+### `autonomous-dev-starter` — 범용 단일 개발 시작점
+- `개발 시작` 시 특정 프로젝트 유형을 가정하지 않는다.
+- 정보가 부족하면 3~5개의 짧은 intake 질문으로 목표, 유형, 사용자, 완료조건, 실행 방식을 정한다.
+- 충분한 정보가 이미 있으면 질문을 생략한다.
+- 신규 프로젝트에는 Karpathy LLM Wiki 패턴의 `raw / concepts / decisions / plans / index / log / schema` 구조를 기본 설치한다.
+- 기획 내용을 Wiki로 누적 정리한 뒤 가장 좁은 프로젝트 프로필과 실제 Quality Gate를 선택한다.
+- 이후 ChatGPT Remote 또는 local CLI 백엔드로 한 수직 기능씩 반복 개발한다.

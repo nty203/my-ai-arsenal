@@ -58,3 +58,12 @@ Require all of the following before reporting completion:
 - Git diff contains no unrelated user files.
 
 Do not start an endless agent run merely to validate installation.
+
+
+## Unified starter routing
+
+일반 사용자의 자율 개발 진입점은 `autonomous-dev-starter`다.
+Starter가 프로젝트를 초기화하고 `chatgpt_remote` 또는 `local_cli`를 선택한다.
+`local_cli`가 선택된 경우에만 이 스킬의 runner 패턴과 템플릿을 사용한다.
+`chatgpt_remote`에서는 로컬 AI CLI runner를 실행하지 않고 ChatGPT + AI Folder Remote 경로를 사용한다.
+두 실행 백엔드를 한 프로젝트에서 동시에 활성화하지 않는다.

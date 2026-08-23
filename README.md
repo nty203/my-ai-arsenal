@@ -47,6 +47,10 @@ my-ai-arsenal/
     └── ai_council/
 ```
 
+## 📚 설정 문서
+
+- [ChatGPT 원격 PC MCP 연결](docs/chatgpt-remote-mcp.md): Desktop Commander Remote를 이용한 ChatGPT 로컬 PC 연결 안내. 실행형 스킬이 아닌 1회성 설정 문서.
+
 ---
 
 ## 🚀 에이전트별 스킬 설치 및 장착 가이드

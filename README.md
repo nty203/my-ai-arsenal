@@ -36,18 +36,6 @@
 
 ---
 
-### 3. 🖥️ `chatgpt-remote-mcp` — ChatGPT 원격 PC MCP
-
-> **"브라우저 ChatGPT에서 로컬 Windows 프로젝트를 직접 개발·실행하는 MCP 연결"**
-
-- **경로**: [`skills/chatgpt-remote-mcp/SKILL.md`](skills/chatgpt-remote-mcp/SKILL.md)
-- **핵심 역할**:
-  - Desktop Commander Remote MCP를 이용해 ChatGPT와 로컬 PC를 OAuth로 연결
-  - ChatGPT의 `/workspace` 샌드박스가 아닌 실제 PC 프로젝트 폴더를 명시적으로 사용하도록 안내
-  - 코드 수정·빌드·배포 전 검토와 승인 절차를 유지
-
----
-
 ## 📁 디렉토리 구조
 
 ```text

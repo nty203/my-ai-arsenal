@@ -36,13 +36,24 @@
 
 ---
 
+### 3. 🔁 `autonomous-dev-loop` — 범용 자율 개발 루프
+> **"새 AI 세션이 파일 인수인계로 기능 하나씩 구현·검증·복구하는 반복 개발 엔진"**
+
+- **경로**: [`skills/autonomous-dev-loop/SKILL.md`](skills/autonomous-dev-loop/SKILL.md)
+- **지원 범위**: 프론트엔드, 백엔드, 풀스택, 게임, CLI, 자동화, 문서·데이터 프로젝트
+- **핵심 기능**: Quality Gate, Wiki 선택 탐색, 타임아웃, 지수 백오프 재시도, 중복 실행 잠금, STOP 감지, 연속 실패 회로 차단
+- **안전 기본값**: 사용자 변경 보존, push·배포·결제·자격증명 작업 자동 실행 차단
+
+---
+
 ## 📁 디렉토리 구조
 
 ```text
 my-ai-arsenal/
 ├── skills/           # Gemini & Claude 범용 공식 표준 규격 (SKILL.md)
-│   ├── ai_council/   # 다중 LLM 의견 종합 및 의사결정 평의회 스킬
-│   └── run-project/  # 프로젝트 10단계 마스터 파이프라인 스킬
+│   ├── ai_council/             # 다중 LLM 의견 종합 및 의사결정 평의회 스킬
+│   ├── autonomous-dev-loop/    # 범용 자율 개발·자가복구 루프
+│   └── run-project/            # 프로젝트 10단계 마스터 파이프라인 스킬
 └── codex/            # Codex / Cursor 전용 규격
     └── ai_council/
 ```
@@ -59,6 +70,7 @@ my-ai-arsenal/
 Claude와 Gemini(Antigravity 등)는 [Agent Skills](http://agentskills.io) 표준인 `SKILL.md` 구조를 완벽히 지원합니다.
 - **설치법**: 에이전트에게 아래 깃허브 경로를 주면서 **"스킬 설치해줘"** 라고 지시하세요.
   - `ai_council`: `https://github.com/nty203/my-ai-arsenal/tree/master/skills/ai_council`
+  - `autonomous-dev-loop`: `https://github.com/nty203/my-ai-arsenal/tree/master/skills/autonomous-dev-loop`
   - `run-project`: `https://github.com/nty203/my-ai-arsenal/tree/master/skills/run-project`
 
 ### 💻 2. Codex / Cursor (코딩 에이전트)

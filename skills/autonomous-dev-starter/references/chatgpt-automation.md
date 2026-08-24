@@ -25,3 +25,7 @@ The scheduled prompt must include the absolute project root and instruct ChatGPT
 8. never push or deploy without explicit approval
 
 A schedule run is one loop iteration, not an endless process. Recurrence is owned by ChatGPT Automation.
+
+## Remote continuous alternative
+
+When AI Folder Remote exposes `start_chatgpt_remote_loop`, `chatgpt_remote_loop_status`, and `stop_chatgpt_remote_loop`, a user may choose continuous Remote instead of a time schedule. It must launch one fresh ChatGPT chat per iteration, wait for the RUN_STATE start/finish handshake, and stop on STOP, circuit-open, SKIP/BLOCKED/FAIL, or timeout. Do not run this driver together with a scheduled Automation or local CLI loop.

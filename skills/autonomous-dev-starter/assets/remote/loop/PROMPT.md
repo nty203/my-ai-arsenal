@@ -14,7 +14,7 @@ Complete exactly one target and one verifiable vertical slice.
 4. Treat a recent RUNNING state as a duplicate run and return SKIP.
 5. Select work in this order: first READY user task; otherwise, when `auto_continue: true`, STATUS next objective; otherwise the smallest verifiable DESIGN-to-code gap.
 6. If no task can be selected safely, return SKIP without source changes.
-7. Record run id, selected/generated task, target app, and start state before implementation.
+7. Before implementation, write `state: RUNNING`, a fresh `run_id`, `active_task`, `started_at`, and `heartbeat_at` to RUN_STATE. This is the Remote continuous start handshake.
 
 Generated tasks must not overwrite the user-owned INBOX.
 
@@ -56,10 +56,14 @@ Open the circuit at the configured failure threshold.
 
 Only after every gate passes:
 - mark the current INBOX task DONE only when the selected work came from INBOX
-- return RUN_STATE to IDLE and clear consecutive failures
+- return RUN_STATE to IDLE, clear `active_task`, clear consecutive failures, refresh heartbeat, and change `last_result` to `PASS:<task-id-or-summary>`
 - update STATUS with goal, task source, changed files, commands/results, risks, and one next task
 - update Wiki only for reusable knowledge
 - commit only when both project policy and `commit_allowed` permit it
+
+## Terminal-state handshake
+
+Every exit path must publish a changed `last_result` before replying. Use `PASS:...`, `SKIP:...`, `BLOCKED:...`, or `FAIL:...`. PASS/SKIP normally end in IDLE; circuit-open ends in CIRCUIT_OPEN; a deliberate human pause may use PAUSED. Never leave RUN_STATE as RUNNING after the iteration has actually ended.
 
 ## Final response
 

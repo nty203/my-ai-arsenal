@@ -9,7 +9,9 @@ Core files:
 - `PROMPT.md`: one-iteration agent contract supplied by the selected mode
 
 Execution modes:
-- `chatgpt_remote`: each ChatGPT Automation occurrence runs one iteration through AI Folder Remote.
+- `chatgpt_remote`: ChatGPT + AI Folder Remote executes one iteration per fresh ChatGPT chat.
+- `chatgpt_remote` may use either ChatGPT Automation scheduling or the optional Remote continuous orchestrator.
+- Remote continuous mode opens a fresh ChatGPT chat after the previous iteration publishes completion in `RUN_STATE.md`.
 - `local_cli`: `loop.ps1` repeatedly launches fresh headless CLI sessions.
 
-Only one backend may be active for a project at a time.
+Only one scheduler, Remote continuous orchestrator, or local CLI backend may actively drive a project at a time.

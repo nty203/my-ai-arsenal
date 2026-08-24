@@ -23,6 +23,15 @@
 - schedule_timezone: project_or_user_local
 - automation_id: none
 
+## Remote continuous loop
+
+- remote_continuous_enabled: false
+- remote_orchestrator_pid: none
+- remote_max_loops: 0
+- remote_poll_seconds: 2
+- remote_startup_timeout_seconds: 180
+- remote_run_timeout_seconds: 3600
+
 ## Local loop
 
 - local_loop_enabled: false
@@ -31,3 +40,4 @@
 
 Mode values: `auto`, `chatgpt_remote`, `local_cli`.
 Task priority: READY user work first; with `auto_continue: true`, choose exactly one smallest verifiable task from STATUS, then DESIGN/repository evidence without overwriting INBOX.
+Only one scheduler, remote continuous orchestrator, or local CLI loop may actively drive a project at a time.

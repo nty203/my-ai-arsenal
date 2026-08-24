@@ -34,6 +34,7 @@ description: 단 하나의 진입점으로 프로젝트를 자율 개발용으�
 사용자가 별도 옵션을 쓰지 않아도 동작해야 한다.
 
 - `개발 시작` => `execution_mode: auto`, `auto_continue: true`.
+- `Remote 연속 개발 시작`, `빈 시간 없이 개발`, `작업마다 새 ChatGPT 채팅으로 계속` => `chatgpt_remote` + Remote continuous orchestrator를 우선 검토한다.
 - `Remote로 개발 시작`, `ChatGPT 예약으로 개발 시작` => `chatgpt_remote`.
 - `CLI로 개발 시작` => `local_cli`.
 - `Codex/Claude/Gemini/agy로 개발 시작` => `local_cli` + 해당 CLI 우선.
@@ -41,6 +42,19 @@ description: 단 하나의 진입점으로 프로젝트를 자율 개발용으�
 - 예약 시간/주기가 없으면 임의 시간을 만들지 않는다. Remote 모드는 즉시 1회 실행 가능한 상태까지 만들고 `READY_FOR_SCHEDULE`을 남긴다.
 
 명시적 사용자 선택이 기존 `loop/EXECUTION.md`와 다르면 현재 loop가 IDLE인지 먼저 확인하고 안전하게 mode switch를 기록한다.
+
+## Starter 실행 시 사용자 의견 반영 안내
+
+프로젝트 루트를 확정하고 `docs/feedback/INBOX.md`를 사용할 수 있게 된 시점에, 사용자에게 아래 피드백 방법을 **한 번 짧게 안내한다.** 내부 파일을 직접 수정하도록 요구하지 않는다.
+
+- `내 의견 반영: <내용>` / `다음 작업에 반영: <내용>` / `우선 작업: <내용>`처럼 자연어로 말하면 사용자 의견을 INBOX의 `READY` 작업으로 기록한다.
+- `READY` 사용자 작업은 STATUS/DESIGN에서 자동 생성한 다음 작업보다 항상 우선한다.
+- `보류` 요청은 해당 사용자 작업을 `PAUSED`로 바꾸고, 다시 진행하라는 명시적 요청 전에는 선택하지 않는다.
+- 완료된 사용자 작업은 검증 후 `DONE`으로 바꾼다.
+- Remote 연속 개발에서는 새 ChatGPT 채팅으로 넘어가도 INBOX가 사용자 의견의 영구 전달함 역할을 한다.
+- 사용자가 "현재 작업에 바로 반영"이라고 명시하지 않았다면, 이미 RUNNING인 수직 작업을 중간에 깨지 말고 다음 반복부터 적용한다.
+
+사용자에게 보여줄 안내는 장황한 내부 설명 대신 예시 중심으로 한다. 예: `개발 중 의견이 생기면 "내 의견 반영: 타워 업그레이드 때 외형도 바꿔줘"라고 말하면 다음 루프 최우선 작업으로 반영됩니다.`
 
 ## Phase 1. 읽기 전용 진단
 
@@ -127,10 +141,12 @@ CLI 우선순위는 사용자 지정 > 기존 EXECUTION 설정 > 검증 가능�
 파일럿 PASS 후 선택된 모드만 활성화한다.
 
 ### chatgpt_remote
-- 예약 정보가 있으면 ChatGPT Automation을 생성한다.
-- Automation은 한 실행에 한 작업만 수행한다.
+- 예약 정보가 있으면 ChatGPT Automation을 생성할 수 있다.
+- 사용자가 연속 실행/즉시 다음 작업/작업마다 새 채팅을 원하고 Remote continuous capability가 있으면 scheduler 대신 Remote continuous orchestrator를 사용할 수 있다.
+- Automation과 continuous orchestrator 모두 한 ChatGPT 채팅에는 한 작업만 수행한다. continuous orchestrator는 RUN_STATE 완료 handshake 후 즉시 새 채팅을 연다.
 - `auto_continue: true`이면 사용자 READY 작업이 없어도 STATUS/DESIGN에서 다음 최소 작업을 선택한다.
-- PC 또는 AI Folder Remote가 오프라인이면 소스 변경 없이 FAIL/BLOCKED로 종료하고 다음 예약에서 다시 평가한다.
+- PC 또는 AI Folder Remote가 오프라인이면 소스 변경 없이 FAIL/BLOCKED로 종료한다.
+- scheduler와 Remote continuous orchestrator를 동시에 활성화하지 않는다.
 
 ### local_cli
 - 첫 파일럿은 `MAX_LOOPS=1`로 실행한다.
@@ -142,7 +158,7 @@ CLI 우선순위는 사용자 지정 > 기존 EXECUTION 설정 > 검증 가능�
 
 Remote ↔ CLI 전환 시:
 1. RUN_STATE가 IDLE인지 확인한다.
-2. 기존 ChatGPT Automation 또는 로컬 loop process를 먼저 중지/비활성화한다.
+2. 기존 ChatGPT Automation, Remote continuous orchestrator 또는 로컬 loop process를 먼저 중지/비활성화한다.
 3. runtime lock이 없는지 확인한다.
 4. EXECUTION의 mode를 변경한다.
 5. 새 mode preflight를 다시 수행한다.
@@ -158,7 +174,7 @@ Remote ↔ CLI 전환 시:
 - Git baseline/commit 정책
 - 탐지한 Quality Gate
 - preflight/파일럿 결과
-- scheduler 또는 local loop 활성화 상태
+- scheduler / Remote continuous orchestrator / local loop 활성화 상태
 
 사용자에게 여러 내부 스킬 이름을 외우게 하지 않는다. 이후에도 `개발 시작`, `개발 계속`, `루프 중지`, `Remote로 전환`, `CLI로 전환` 같은 의도로 이 진입점이 적절한 하위 경로를 선택한다.
 

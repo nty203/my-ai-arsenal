@@ -8,7 +8,11 @@ Resolve the mode in this order:
 3. Strong wording: `예약`, `ChatGPT`, `Remote`, `AI Folder Remote` => `chatgpt_remote`; `CLI`, `Codex`, `Claude`, `Gemini`, `agy` => `local_cli`.
 4. `auto`: when running inside ChatGPT with AI Folder Remote available, prefer `chatgpt_remote`; otherwise use a verified local CLI.
 
-Never run both backends concurrently for one project. Switching modes requires the current loop to be IDLE and the old scheduler/process to be disabled first.
+Never run both backends concurrently for one project. Within `chatgpt_remote`, do not run a scheduler and Remote continuous orchestrator at the same time. Switching modes requires the current loop to be IDLE and the old scheduler/orchestrator/process to be disabled first.
+
+## ChatGPT Remote drivers
+
+`chatgpt_remote` has two drivers: scheduled ChatGPT Automation, or the optional AI Folder Remote continuous orchestrator. Use continuous mode only when the Remote exposes safe ChatGPT window activation/new-chat tools plus RUN_STATE-based orchestration. Completion must never be inferred from UI text or pixels.
 
 ## Local CLI discovery
 

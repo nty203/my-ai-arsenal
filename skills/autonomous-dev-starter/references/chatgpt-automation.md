@@ -29,4 +29,16 @@ A schedule run is one loop iteration, not an endless process. Recurrence is owne
 
 ## Remote continuous alternative
 
-When AI Folder Remote exposes `start_chatgpt_remote_loop`, `chatgpt_remote_loop_status`, and `stop_chatgpt_remote_loop`, a user may choose continuous Remote instead of a time schedule. It must launch one fresh ChatGPT chat per iteration, select the AI Folder Remote mention without keyboard-layout/IME corruption, choose `Chat으로 계속하기` whenever ChatGPT presents a Work-vs-Chat routing choice, verify that the composer actually submitted, then wait for the RUN_STATE start/finish handshake. If the composer remains populated after retries, treat launch as failed rather than waiting for a false handshake. Stop on STOP, circuit-open, SKIP/BLOCKED/FAIL, or timeout. Do not run this driver together with a scheduled Automation or local CLI loop.
+When AI Folder Remote exposes `start_chatgpt_remote_loop`, `chatgpt_remote_loop_status`, and `stop_chatgpt_remote_loop`, a user may choose continuous Remote instead of a time schedule. It must launch one fresh ChatGPT chat per iteration, positively verify that the ChatGPT window is foreground, wait for the new-chat WebView composer to stabilize, click the composer, then select the AI Folder Remote mention without keyboard-layout/IME corruption. Choose `Chat으로 계속하기` whenever ChatGPT presents a Work-vs-Chat routing choice, verify that the composer actually submitted, then wait for the RUN_STATE start/finish handshake. If the composer remains populated after retries, or the window cannot be brought foreground, treat launch as failed rather than waiting for a false handshake. Stop on STOP, circuit-open, SKIP/BLOCKED/FAIL, or timeout. Do not run this driver together with a scheduled Automation or local CLI loop.
+
+For installations that include the separate browser driver, prefer semantic
+web selectors over window coordinates: locate the ChatGPT composer by role,
+commit `AI Folder Remote`, verify its `/plugins/` link token inside the
+composer, and only then submit. Use a dedicated browser profile with one-time
+manual login; never read or print profile contents or credentials. Keep the
+Windows-app driver unchanged as a fallback, and never run both loops together.
+
+If an installation already maintains a non-default, separately authenticated
+browser profile for ChatGPT, a normal Selenium driver may reuse that profile
+without copying or inspecting it. Do not use a person’s default Chrome profile,
+do not remove profile lock files, and fail safely when that profile is in use.

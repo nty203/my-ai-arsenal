@@ -1,4 +1,4 @@
----
+﻿---
 name: autonomous-dev-starter
 description: 단 하나의 진입점으로 프로젝트를 자율 개발용으로 진단·초기화한 뒤 ChatGPT Automation + AI Folder Remote 또는 로컬 headless CLI 실행 모드까지 자동 연결하는 시작 스킬. 사용자가 "개발 시작", "루프 개발 시작", "자율 개발 시작"이라고 하면 프로젝트 구조, Git, 보호 파일, Quality Gate, 상태 문서, 실행 모드를 준비하고 파일럿 검증 후 선택된 루프를 시작한다.
 ---
@@ -114,7 +114,7 @@ Remote 반복의 작업 선택 순서:
 Remote 예약 프롬프트의 핵심:
 `AI Folder Remote로 대상 프로젝트의 loop/EXECUTION.md와 loop/PROMPT.md를 먼저 읽고, 선택 규칙에 따라 정확히 한 개의 수직 작업을 구현·검증·기록하라. local AI CLI, push, deploy는 금지한다.`
 
-Remote continuous UI driver 기준본은 `assets/remote/driver/windows-ui.ps1`과 `assets/remote/driver/chatgpt-remote-loop.ps1`이다. 설치된 AI Folder Remote 구현을 보완/업데이트할 때 이 기준본과 동기화한다. 드라이버는 ChatGPT Windows 앱에서 새 채팅을 UI Automation으로 열고, `@AI Folder Remote`를 IME에 영향받지 않는 붙여넣기 방식으로 선택하며, `Work로 전환 / Chat으로 계속하기` 선택지가 나타나면 Chat으로 계속하기를 자동 선택해야 한다. Enter를 보냈다는 사실만으로 성공 처리하지 말고 composer가 실제로 비워졌는지 확인하며, 필요하면 제출 버튼을 재시도한다. 제출이 검증되지 않거나 RUN_STATE start handshake가 오지 않으면 새 채팅으로 최대 3회 재시도하고 시도 사이 기본 5초를 둔다. 3회 실패 시 `START_FAILED`로 안전 중단한다. 단, RUN_STATE가 이미 RUNNING/RECOVERING으로 바뀐 뒤의 실행 타임아웃은 중복 수정을 막기 위해 자동 새 세션 재시도를 하지 않는다.
+Remote continuous UI driver 기준본은 `assets/remote/driver/windows-ui.ps1`과 `assets/remote/driver/chatgpt-remote-loop.ps1`이다. 설치된 AI Folder Remote 구현을 보완/업데이트할 때 이 기준본과 동기화한다. 드라이버는 ChatGPT Windows 앱에서 매번 **새 채팅**을 열고, `Work`가 아닌 `Chat` 모드임을 확인한 뒤 composer의 `+` 메뉴를 실제 클릭한다. 메뉴에서 정확히 `AI Folder Remote`를 찾고, 화면 아래에 있으면 메뉴를 스크롤한 다음 실제 클릭해 **앱 토큰으로 선택**해야 한다. 접근성 요소가 노출되면 그 경계를 우선 사용하고, 노출되지 않는 경우에만 현재 앱 창 또는 composer 크기에 대한 비율 좌표를 사용한다. 고정 절대 좌표와 `@AI Folder Remote` 일반 텍스트 입력은 성공으로 취급하지 않는다. 프롬프트 제출 뒤 `Work에서 계속할까요?` 같은 라우팅 팝업은 즉시 뜬다고 가정하지 말고 기본 30초 동안 감시하며, 나타나면 `여기서 채팅 계속하기`를 자동 선택한다. 버튼 문자열이 달라도 `Work로 계속` 버튼과 같은 행의 왼쪽 형제 버튼을 구조적 fallback으로 사용한다. Enter를 보냈다는 사실만으로 성공 처리하지 말고 composer가 실제로 비워졌는지 확인하며, 필요하면 제출 버튼을 재시도한다. 응답 완료 판정은 composer의 실제 `중지`/stop 버튼만 사용하고, 완료 뒤 남는 `생각 중` 사고 과정 토글은 busy 신호로 해석하지 않는다. 한 응답이 길이 한계로 RUNNING 작업을 미완료 보고하면 새 claim을 만들지 말고 새 Chat 채팅에서 기존 claim/RUN_STATE를 이어 복구한다. 제출이 검증되지 않거나 RUN_STATE start handshake가 오지 않으면 새 채팅으로 최대 3회 재시도하고 시도 사이 기본 5초를 둔다. start handshake는 RUN_STATE가 실제 `RUNNING` 또는 `RECOVERING`일 때만 인정하며 run_id/heartbeat 변화만으로 인정하지 않는다. 3회 실패 시 `START_FAILED`로 안전 중단한다. 단, RUN_STATE가 이미 RUNNING/RECOVERING으로 바뀐 뒤의 실행 타임아웃은 중복 수정을 막기 위해 자동 새 세션 재시도를 하지 않는다.
 
 예약 시간/주기가 사용자 요청에 있으면 파일럿 PASS 후 ChatGPT Automation을 생성한다.
 시간 정보가 없으면 Automation을 임의 생성하지 않고 `scheduler: READY_FOR_SCHEDULE`로 기록한다.
@@ -164,7 +164,7 @@ CLI 우선순위는 사용자 지정 > 기존 EXECUTION 설정 > 검증 가능�
 ### chatgpt_remote
 - 예약 정보가 있으면 ChatGPT Automation을 생성할 수 있다.
 - 사용자가 연속 실행/즉시 다음 작업/작업마다 새 채팅을 원하고 Remote continuous capability가 있으면 scheduler 대신 Remote continuous orchestrator를 사용할 수 있다.
-- Automation과 continuous orchestrator 모두 한 ChatGPT 채팅에는 한 작업만 수행한다. continuous orchestrator는 RUN_STATE 완료 handshake 후 즉시 새 채팅을 연다.
+- Automation과 continuous orchestrator 모두 한 ChatGPT 채팅에는 한 작업만 수행한다. continuous orchestrator는 RUN_STATE 완료 handshake만으로 즉시 새 채팅을 열지 않는다. terminal RUN_STATE는 모든 project closeout의 마지막 mutating write여야 하며, orchestrator는 그 뒤 현재 ChatGPT 응답이 실제로 idle 상태가 될 때까지 기다린 후 새 채팅을 연다.
 - `auto_continue: true`이면 계획 작업을 먼저 소진하고, 그 뒤에만 허용된 자율 개선 평가로 다음 최소 작업을 선택한다. `PROJECT_COMPLETE`이면 새 iteration을 시작하지 않는다.
 - PC 또는 AI Folder Remote가 오프라인이면 소스 변경 없이 FAIL/BLOCKED로 종료한다.
 - scheduler와 Remote continuous orchestrator를 동시에 활성화하지 않는다.

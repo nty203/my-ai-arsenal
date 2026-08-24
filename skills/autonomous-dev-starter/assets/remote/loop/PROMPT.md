@@ -1,4 +1,4 @@
-# ChatGPT-native Autonomous Development Contract
+﻿# ChatGPT-native Autonomous Development Contract
 
 ## Execution model
 
@@ -68,11 +68,13 @@ Open the circuit at the configured failure threshold.
 ## Success handoff
 
 Only after every gate passes:
-- mark the current INBOX task DONE only when the selected work came from INBOX
-- return RUN_STATE to IDLE, clear `active_task`, clear consecutive failures, refresh heartbeat, and change `last_result` to `PASS:<task-id-or-summary>`
-- update STATUS with goal, task source, changed files, commands/results, risks, and one next task; when planned work is exhausted, record autonomous evaluation evidence/candidates instead of inventing a next task
-- update Wiki only for reusable knowledge
-- commit only when both project policy and `commit_allowed` permit it
+- mark the current INBOX/task row DONE only when appropriate
+- while closeout files are still being changed, keep RUN_STATE `state: RUNNING`; do not publish terminal IDLE early
+- update the session record, STATUS, CURRENT/handoff, Wiki/log, task board, evidence references, and any permitted commit first
+- mark the active claim `handoff_ready: true`, verify it, then release/remove the claim
+- **as the final mutating operation of the iteration**, return RUN_STATE to IDLE, clear `active_task`, clear consecutive failures, refresh heartbeat, set the exact next task, and change `last_result` to `PASS:<task-id-or-summary>`
+- read back terminal RUN_STATE/handoff for verification; after terminal RUN_STATE is published, do not perform any further mutating tool/file operations
+- only then produce the final ChatGPT response
 
 ## Project completion check
 

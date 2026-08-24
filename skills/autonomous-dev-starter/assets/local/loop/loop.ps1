@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([switch]$PreflightOnly)
 
 Set-StrictMode -Version Latest
@@ -133,6 +133,14 @@ if ($PreflightOnly) {
     exit 0
 }
 
+function Get-ProjectState {
+    $statusPath = Join-Path $ProjectRoot "docs\STATUS.md"
+    if (-not (Test-Path $statusPath)) { return "" }
+    $line = Get-Content $statusPath | Where-Object { $_ -match '^\s*-\s*project_state:\s*(.*)$' } | Select-Object -First 1
+    if (-not $line) { return "" }
+    return ([regex]::Match($line, '^\s*-\s*project_state:\s*(.*)$')).Groups[1].Value.Trim()
+}
+
 $circuitPath = Join-Path $RuntimePath "CIRCUIT_OPEN.md"
 if (Test-Path $circuitPath) {
     throw "Circuit is open. Inspect and remove: $circuitPath"
@@ -156,6 +164,10 @@ try {
     $ConsecutiveFailures = 0
 
     while ($true) {
+        if ((Get-ProjectState) -ieq 'PROJECT_COMPLETE') {
+            Write-Host "PROJECT_COMPLETE reached. Exiting without creating more work."
+            break
+        }
         if (Test-Path (Join-Path $ProjectRoot "loop\STOP")) {
             Write-Host "loop\STOP found. Exiting."
             break
@@ -235,6 +247,10 @@ Inspect the cause, delete this file, and start the loop again.
             }
         }
 
+        if ((Get-ProjectState) -ieq 'PROJECT_COMPLETE') {
+            Write-Host "PROJECT_COMPLETE reached after loop $LoopCount. Exiting."
+            break
+        }
         Write-Host "Next loop in $SLEEP_SECONDS seconds"
         if (-not (Wait-Interruptibly -Seconds $SLEEP_SECONDS)) { break }
     }

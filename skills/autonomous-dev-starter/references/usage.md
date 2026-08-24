@@ -1,27 +1,56 @@
-# Usage
+# 사용 가이드
 
-The user should only need the `autonomous-dev-starter` entry skill.
+사용자는 `autonomous-dev-starter` 하나만 기억하면 된다. 내부 루프 파일을 직접 편집할 필요가 없다.
 
-## Minimal commands
+## 처음 시작할 때
 
-- `개발 시작` — auto-detect backend, bootstrap, preflight, pilot.
-- `ChatGPT Remote로 개발 시작` — use ChatGPT + AI Folder Remote.
-- `매일 오후 12시에 ChatGPT Remote로 개발 시작` — after pilot PASS, create the requested ChatGPT Automation.
-- `CLI로 개발 시작` — auto-select a verified local headless CLI.
-- `Codex로 개발 시작` — local CLI mode with Codex preferred.
-- `Claude로 개발 시작`, `Gemini로 개발 시작`, `agy로 개발 시작` — same pattern.
-- `개발 계속` — continue using the stored execution mode.
-- `Remote 연속 개발 시작` — when supported, start the AI Folder Remote continuous orchestrator; each task runs in a fresh ChatGPT chat and the next chat starts immediately after RUN_STATE completion.
-- `Remote 연속 개발 상태` — read the orchestrator status without starting another iteration.
-- `Remote 연속 개발 재개` — after explicit resume intent, clear only `loop/STOP` with `RESUME` confirmation and start the Remote continuous orchestrator again.
-- `Remote로 전환` / `CLI로 전환` — safely stop the old backend, preflight the new one, then switch.
-- `루프 중지` — stop/disable the active backend without deleting project state.
-- `내 의견 반영: <내용>` / `다음 작업에 반영: <내용>` — save the request as the next `READY` user-priority task in `docs/feedback/INBOX.md`.
-- `우선 작업: <내용>` — make the request the next explicit user-priority task.
-- `<작업> 보류` — change that user task to `PAUSED` so automatic work can continue without consuming it.
+가장 간단한 명령은 `개발 시작`이다. Starter가 프로젝트 구조, Git 상태, Quality Gate, 실행 모드를 진단하고 안전한 파일럿 1회를 준비한다.
 
-## Default behavior
+원하는 실행 방식이 있으면 처음부터 말할 수 있다.
+- `ChatGPT Remote로 개발 시작` — ChatGPT + AI Folder Remote
+- `Remote 연속 개발 시작` — 작업 하나가 끝날 때마다 새 ChatGPT 채팅으로 즉시 다음 작업
+- `매일 오후 12시에 ChatGPT Remote로 개발 시작` — 파일럿 PASS 후 예약 실행
+- `CLI로 개발 시작` / `Codex로 개발 시작` / `Claude로 개발 시작` — 검증된 로컬 headless CLI 사용
 
-`개발 시작` means `auto_continue: true`. User READY work has priority. When no READY task exists, one smallest verifiable task is selected from STATUS/DESIGN per iteration.
+Starter는 첫 실행에서 현재 모드, 자동 개선 여부, 의견 넣는 법, 중지/재개 방법, 완료 기준을 짧게 안내해야 한다.
 
-A scheduled Remote Automation run is one iteration. Remote continuous mode may repeat iterations in fresh ChatGPT chats using RUN_STATE as the completion handshake. A local CLI process may repeat iterations under `loop.ps1` until STOP, a configured loop limit, or circuit-open.
+## 평소 사용하는 명령
+
+- `개발 계속` — 저장된 방식으로 다음 iteration 1회 진행
+- `Remote 연속 개발 시작` — 연속 루프 시작
+- `Remote 연속 개발 상태` — 현재 상태만 확인
+- `루프 중지` — 현재 backend 중지
+- `Remote 연속 개발 재개` / `개발 재개` — 중지 또는 PROJECT_COMPLETE 이후 새 작업과 함께 다시 활성화
+- `Remote로 전환` / `CLI로 전환` — 안전하게 실행 backend 변경
+
+## 내 의견을 최우선으로 넣기
+
+자연어로 말하면 된다.
+- `내 의견 반영: 타워 업그레이드 때 외형도 바꿔줘`
+- `다음 작업에 반영: 로그인 오류 메시지를 더 명확하게 해줘`
+- `우선 작업: 저장 데이터 마이그레이션부터 처리해줘`
+- `<작업> 보류` / `<작업> 다시 진행` / `<작업> 취소`
+
+READY 사용자 작업은 자동 생성 작업보다 항상 우선한다. 이미 RUNNING인 수직 작업은 사용자가 즉시 반영을 명시하지 않는 한 안전하게 끝낸 뒤 다음 iteration부터 적용한다.
+
+## 루프가 일을 고르는 순서
+
+1. 사용자 READY 작업
+2. 실패한 테스트/회귀/블로커 복구
+3. TASK_BOARD/STATUS의 계획 작업
+4. DESIGN의 미완료 필수 범위
+5. 위 작업이 없을 때만 자율 개선
+
+자율 개선은 최대 몇 개의 후보를 평가한 뒤 실제 근거와 검증 방법이 가장 강한 1개만 수행한다. 단순 취향, 의미 없는 리팩터링, 작업을 계속하기 위한 작업은 만들지 않는다.
+
+## 자율 개선은 무엇을 보는가
+
+예: 오류/실패 테스트, UX 마찰, 성능 저하, 접근성 문제, 테스트 공백, 반복되는 장애, 유지보수 위험. 변경 후 테스트·벤치마크·화면 흐름 등으로 좋아졌는지 검증할 수 있어야 한다.
+
+## 언제 끝나는가
+
+필수 계획 작업이 모두 끝나고, DESIGN의 완료 조건과 필수 Quality Gate가 PASS이며, Critical/High blocker가 없고, 증거 기반으로 가치 있는 개선 후보도 없으면 `PROJECT_COMPLETE`가 된다. 이 상태에서는 연속 루프가 새 일을 억지로 만들지 않는다. 새 사용자 작업을 넣거나 `개발 재개`를 말하면 다시 ACTIVE로 돌아갈 수 있다.
+
+## Remote 연속 개발의 기억
+
+각 작업은 새 ChatGPT 채팅에서 실행될 수 있다. 대화 기억 대신 `INBOX`, `STATUS`, `RUN_STATE`, Wiki가 프로젝트의 지속 메모리 역할을 한다. 따라서 사용자 의견과 검증 결과가 다음 채팅에도 전달된다.

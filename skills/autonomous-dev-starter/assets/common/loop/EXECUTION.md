@@ -5,6 +5,13 @@
 - selected_cli: none
 - agent_command: none
 - auto_continue: true
+- autonomous_improvement_enabled: true
+- improvement_after_planned_work_only: true
+- improvement_candidate_limit: 5
+- improvement_requires_evidence: true
+- improvement_requires_verifiable_outcome: true
+- stop_when_no_valuable_work: true
+- project_completion_check: true
 - one_vertical_slice_per_run: true
 - self_heal_attempts_per_run: 1
 - consecutive_failures_before_circuit_open: 2
@@ -39,5 +46,5 @@
 - local_max_loops: 0
 
 Mode values: `auto`, `chatgpt_remote`, `local_cli`.
-Task priority: READY user work first; with `auto_continue: true`, choose exactly one smallest verifiable task from STATUS, then DESIGN/repository evidence without overwriting INBOX.
+Task priority: READY user work > verified blocker/regression > explicit planned work > DESIGN gap > autonomous improvement. Autonomous improvement runs only after planned work is exhausted, must have evidence and a verifiable outcome, and never overwrites INBOX. `PROJECT_COMPLETE` stops further automatic iterations until new user work or explicit resume.
 Only one scheduler, remote continuous orchestrator, or local CLI loop may actively drive a project at a time.

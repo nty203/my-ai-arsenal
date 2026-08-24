@@ -2,8 +2,10 @@
 
 `autonomous-dev-starter` owns installation and mode selection.
 
+The control system uses a two-layer loop: first finish user/planned work, then evaluate evidence-backed autonomous improvements one vertical slice at a time. It must converge on project completion rather than inventing endless low-value work.
+
 Core files:
-- `EXECUTION.md`: backend and safety policy
+- `EXECUTION.md`: backend, improvement, completion, and safety policy
 - `PROJECTS.md`: allowed targets and existing Quality Gates
 - `RUN_STATE.md`: lock/failure/circuit state shared across execution modes
 - `PROMPT.md`: one-iteration agent contract supplied by the selected mode

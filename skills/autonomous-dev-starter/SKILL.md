@@ -19,6 +19,8 @@ description: 단 하나의 진입점으로 프로젝트를 자율 개발용으�
 5. `chatgpt_remote` 또는 `local_cli` 실행 모드를 확정한다.
 6. preflight와 1회 파일럿을 통과시킨다.
 7. 사용자가 요청한 방식으로 반복 루프를 시작하거나 예약 가능한 상태로 만든다.
+8. 명시된 작업이 끝난 뒤에는 증거 기반 자율 개선 루프로 전환해 가장 가치 높은 개선 하나씩 수행한다.
+9. 프로젝트 완료 조건을 만족하고 가치 있는 다음 작업이 없으면 스스로 루프를 종료한다.
 
 ## 절대 안전 규칙
 
@@ -33,7 +35,7 @@ description: 단 하나의 진입점으로 프로젝트를 자율 개발용으�
 
 사용자가 별도 옵션을 쓰지 않아도 동작해야 한다.
 
-- `개발 시작` => `execution_mode: auto`, `auto_continue: true`.
+- `개발 시작` => `execution_mode: auto`, `auto_continue: true`, `autonomous_improvement_enabled: true`.
 - `Remote 연속 개발 시작`, `빈 시간 없이 개발`, `작업마다 새 ChatGPT 채팅으로 계속` => `chatgpt_remote` + Remote continuous orchestrator를 우선 검토한다.
 - `Remote로 개발 시작`, `ChatGPT 예약으로 개발 시작` => `chatgpt_remote`.
 - `CLI로 개발 시작` => `local_cli`.
@@ -43,18 +45,20 @@ description: 단 하나의 진입점으로 프로젝트를 자율 개발용으�
 
 명시적 사용자 선택이 기존 `loop/EXECUTION.md`와 다르면 현재 loop가 IDLE인지 먼저 확인하고 안전하게 mode switch를 기록한다.
 
-## Starter 실행 시 사용자 의견 반영 안내
+## Starter 첫 실행 사용자 가이드
 
-프로젝트 루트를 확정하고 `docs/feedback/INBOX.md`를 사용할 수 있게 된 시점에, 사용자에게 아래 피드백 방법을 **한 번 짧게 안내한다.** 내부 파일을 직접 수정하도록 요구하지 않는다.
+프로젝트 루트와 실행 모드를 확정하고 제어 파일을 준비한 뒤, 첫 파일럿 전에 `references/first-run-guide.md`의 핵심을 사용자에게 **한 번 짧게 안내한다.** 사용자가 내부 파일을 직접 편집하도록 요구하지 않는다.
 
-- `내 의견 반영: <내용>` / `다음 작업에 반영: <내용>` / `우선 작업: <내용>`처럼 자연어로 말하면 사용자 의견을 INBOX의 `READY` 작업으로 기록한다.
-- `READY` 사용자 작업은 STATUS/DESIGN에서 자동 생성한 다음 작업보다 항상 우선한다.
-- `보류` 요청은 해당 사용자 작업을 `PAUSED`로 바꾸고, 다시 진행하라는 명시적 요청 전에는 선택하지 않는다.
-- 완료된 사용자 작업은 검증 후 `DONE`으로 바꾼다.
-- Remote 연속 개발에서는 새 ChatGPT 채팅으로 넘어가도 INBOX가 사용자 의견의 영구 전달함 역할을 한다.
-- 사용자가 "현재 작업에 바로 반영"이라고 명시하지 않았다면, 이미 RUNNING인 수직 작업을 중간에 깨지 말고 다음 반복부터 적용한다.
+반드시 알려줄 내용:
+- 평소에는 `개발 계속` 또는 `Remote 연속 개발 시작`만 말하면 된다.
+- `내 의견 반영: <내용>` / `다음 작업에 반영: <내용>` / `우선 작업: <내용>`은 INBOX의 `READY` 사용자 작업으로 저장되어 자동 작업보다 우선한다.
+- `보류`, `재개`, `취소`, `루프 중지`를 자연어로 요청할 수 있다.
+- 루프는 **사용자/계획 작업을 먼저 처리**하고, 계획된 일이 없을 때만 증거 기반 자율 개선 후보를 평가해 하나씩 수행한다.
+- 자율 개선은 UX, 성능, 테스트, 안정성, 유지보수성 등에서 실제 근거와 검증 방법이 있는 경우에만 선택한다.
+- Remote 연속 개발은 작업마다 새 ChatGPT 채팅을 사용하지만 INBOX/STATUS/RUN_STATE/Wiki가 지속 메모리 역할을 한다.
+- 프로젝트 완료 조건을 모두 만족하고 가치 있는 다음 작업이 없으면 `PROJECT_COMPLETE`로 종료한다.
 
-사용자에게 보여줄 안내는 장황한 내부 설명 대신 예시 중심으로 한다. 예: `개발 중 의견이 생기면 "내 의견 반영: 타워 업그레이드 때 외형도 바꿔줘"라고 말하면 다음 루프 최우선 작업으로 반영됩니다.`
+사용자에게 보여줄 첫 안내는 8~12줄 이내로 유지하고, 실제 프로젝트의 실행 모드와 다음 명령을 포함한다.
 
 ## Phase 1. 읽기 전용 진단
 
@@ -98,13 +102,19 @@ description: 단 하나의 진입점으로 프로젝트를 자율 개발용으�
 
 Remote 반복의 작업 선택 순서:
 1. INBOX의 첫 READY 사용자 작업.
-2. READY가 없고 `auto_continue: true`이면 STATUS의 다음 목표.
-3. STATUS에도 없으면 DESIGN과 현재 구현 사이의 가장 작은 검증 가능한 간극.
+2. 실패한 Quality Gate, BLOCKER, 회귀처럼 이미 증거가 있는 복구 작업.
+3. STATUS/TASK_BOARD의 명시된 계획 작업.
+4. DESIGN과 현재 구현 사이의 미완료 요구사항 중 가장 작은 검증 가능한 간극.
+5. 위 계획 작업이 없고 `auto_continue: true` + `autonomous_improvement_enabled: true`이면 자율 개선 평가를 수행한다.
 
-자동 생성한 작업은 INBOX를 덮어쓰지 말고 RUN_STATE/STATUS 실행 기록에 `generated_task`로 남긴다.
+자율 개선 평가는 `references/autonomous-improvement.md`를 따른다. 최대 5개 후보를 만들고 impact, evidence, urgency, cost, verifiability를 비교해 **가장 가치 높은 하나만** 선택한다. 근거 또는 검증 방법이 약하면 작업을 만들지 않는다.
+
+자동 생성한 작업은 INBOX를 덮어쓰지 말고 RUN_STATE/STATUS 실행 기록에 `task_source: autonomous_improvement`와 선택 근거를 남긴다.
 
 Remote 예약 프롬프트의 핵심:
 `AI Folder Remote로 대상 프로젝트의 loop/EXECUTION.md와 loop/PROMPT.md를 먼저 읽고, 선택 규칙에 따라 정확히 한 개의 수직 작업을 구현·검증·기록하라. local AI CLI, push, deploy는 금지한다.`
+
+Remote continuous UI driver 기준본은 `assets/remote/driver/windows-ui.ps1`과 `assets/remote/driver/chatgpt-remote-loop.ps1`이다. 설치된 AI Folder Remote 구현을 보완/업데이트할 때 이 기준본과 동기화한다. 드라이버는 ChatGPT Windows 앱에서 새 채팅을 UI Automation으로 열고, `@AI Folder Remote`를 IME에 영향받지 않는 붙여넣기 방식으로 선택하며, `Work로 전환 / Chat으로 계속하기` 선택지가 나타나면 Chat으로 계속하기를 자동 선택해야 한다. Enter를 보냈다는 사실만으로 성공 처리하지 말고 composer가 실제로 비워졌는지 확인하며, 필요하면 제출 버튼을 재시도한다. 제출이 검증되지 않거나 RUN_STATE start handshake가 오지 않으면 새 채팅으로 최대 3회 재시도하고 시도 사이 기본 5초를 둔다. 3회 실패 시 `START_FAILED`로 안전 중단한다. 단, RUN_STATE가 이미 RUNNING/RECOVERING으로 바뀐 뒤의 실행 타임아웃은 중복 수정을 막기 위해 자동 새 세션 재시도를 하지 않는다.
 
 예약 시간/주기가 사용자 요청에 있으면 파일럿 PASS 후 ChatGPT Automation을 생성한다.
 시간 정보가 없으면 Automation을 임의 생성하지 않고 `scheduler: READY_FOR_SCHEDULE`로 기록한다.
@@ -126,6 +136,17 @@ CLI 우선순위는 사용자 지정 > 기존 EXECUTION 설정 > 검증 가능�
 에이전트 프롬프트는 프로젝트의 `loop/PROMPT.md`를 전부 읽고 정확히 한 바퀴만 수행하도록 한다.
 `loop.ps1`은 매 attempt마다 새 CLI 세션을 시작하고 Quality Gate, STOP, lock, retry, circuit breaker를 관리한다.
 
+## Project completion gate
+
+각 iteration 종료 후 다음을 확인한다.
+1. READY 사용자 작업과 필수 계획 작업이 없다.
+2. DESIGN의 completion signals / MVP 필수 범위가 충족됐다.
+3. 등록된 필수 Quality Gate가 PASS다.
+4. BLOCKER 또는 알려진 Critical/High 결함이 없다.
+5. 자율 개선 평가에서도 증거와 검증 가능성이 충분한 가치 있는 후보가 없다.
+
+모두 만족하면 STATUS에 `project_state: PROJECT_COMPLETE`, `next_objective: none`을 기록하고 자동 driver가 새 iteration을 만들지 않게 한다. 단순히 "더 예쁘게", "리팩터링 가능" 같은 저가치 후보만 남은 경우도 완료로 본다. 사용자가 새 READY 작업을 넣거나 `개발 재개`를 요청하면 ACTIVE로 되돌릴 수 있다.
+
 ## Phase 5. Preflight와 파일럿
 
 1. 프로젝트별 gate가 실제 존재하는 명령인지 재확인한다.
@@ -144,7 +165,7 @@ CLI 우선순위는 사용자 지정 > 기존 EXECUTION 설정 > 검증 가능�
 - 예약 정보가 있으면 ChatGPT Automation을 생성할 수 있다.
 - 사용자가 연속 실행/즉시 다음 작업/작업마다 새 채팅을 원하고 Remote continuous capability가 있으면 scheduler 대신 Remote continuous orchestrator를 사용할 수 있다.
 - Automation과 continuous orchestrator 모두 한 ChatGPT 채팅에는 한 작업만 수행한다. continuous orchestrator는 RUN_STATE 완료 handshake 후 즉시 새 채팅을 연다.
-- `auto_continue: true`이면 사용자 READY 작업이 없어도 STATUS/DESIGN에서 다음 최소 작업을 선택한다.
+- `auto_continue: true`이면 계획 작업을 먼저 소진하고, 그 뒤에만 허용된 자율 개선 평가로 다음 최소 작업을 선택한다. `PROJECT_COMPLETE`이면 새 iteration을 시작하지 않는다.
 - PC 또는 AI Folder Remote가 오프라인이면 소스 변경 없이 FAIL/BLOCKED로 종료한다.
 - scheduler와 Remote continuous orchestrator를 동시에 활성화하지 않는다.
 
@@ -184,6 +205,8 @@ Remote ↔ CLI 전환 시:
 - CLI별 안전한 headless 명령 기본형: `references/cli-command-templates.md`
 - ChatGPT Automation 생성 계약: `references/chatgpt-automation.md`
 - 사용자가 기억할 최소 명령: `references/usage.md`
+- 첫 실행 안내: `references/first-run-guide.md`
+- 자율 개선 평가 규칙: `references/autonomous-improvement.md`
 
 CLI 명령은 참조 템플릿을 그대로 맹신하지 말고 현재 설치된 CLI의 `--help` 결과와 대조한 뒤 확정한다.
 

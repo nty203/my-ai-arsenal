@@ -2,6 +2,7 @@
 # Customize this file per project; reuse loop.ps1 and PROMPT.md unchanged.
 
 $PROJECT_PROFILE = "auto"  # auto | frontend | backend | fullstack | game | cli | docs | custom
+$VCS_PREFERENCE = "auto"   # auto | git | svn; use explicit mode only when a project is intentionally nested in another VCS
 $AGENT_CMD = 'agy --prompt-file "loop\PROMPT.md"'
 
 # Loop controls
@@ -14,9 +15,9 @@ $MAX_CONSECUTIVE_FAILURES = 3
 
 # Commands run by the orchestrator after a successful agent session.
 # Add the project's existing test, lint, type-check, and build commands.
-$QUALITY_COMMANDS = @(
-    'git diff --check'
-)
+$QUALITY_COMMANDS = @()
+# Git gets `git diff --check` automatically when this list is empty.
+# SVN projects should add their existing project gates here; do not initialize nested Git just for validation.
 
 # Example frontend:
 # @('npm run lint', 'npm test -- --run', 'npm run build')

@@ -1,4 +1,4 @@
-﻿---
+---
 name: autonomous-dev-starter
 description: 단 하나의 진입점으로 프로젝트를 자율 개발용으로 진단·초기화한 뒤 ChatGPT Automation + AI Folder Remote 또는 로컬 headless CLI 실행 모드까지 자동 연결하는 시작 스킬. 사용자가 "개발 시작", "루프 개발 시작", "자율 개발 시작"이라고 하면 프로젝트 구조, Git, 보호 파일, Quality Gate, 상태 문서, 실행 모드를 준비하고 파일럿 검증 후 선택된 루프를 시작한다.
 ---
@@ -13,12 +13,12 @@ description: 단 하나의 진입점으로 프로젝트를 자율 개발용으�
 한 번의 시작 흐름에서 다음 상태까지 만든다.
 
 1. 프로젝트를 읽기 전용으로 진단한다.
-2. 안전한 Git/비밀파일/출력물 정책을 설정한다.
+2. 기존 VCS(Git/SVN)를 감지해 source-of-truth를 보존하고, VCS가 없을 때만 안전한 Git baseline/비밀파일/출력물 정책을 설정한다.
 3. 프로젝트별 실제 Quality Gate를 찾는다.
 4. 공통 루프 문서와 상태 파일을 생성 또는 병합한다.
 5. `chatgpt_remote` 또는 `local_cli` 실행 모드를 확정한다.
-6. preflight와 1회 파일럿을 통과시킨다.
-7. 사용자가 요청한 방식으로 반복 루프를 시작하거나 예약 가능한 상태로 만든다.
+6. preflight와 제한된 2-iteration 파일럿을 통과시키고 두 로그를 직접 검토한다.
+7. 파일럿 실측값으로 timeout/turn/stale 기준을 조정한 뒤 사용자가 요청한 반복 루프를 시작하거나 예약 가능한 상태로 만든다.
 8. 명시된 작업이 끝난 뒤에는 증거 기반 자율 개선 루프로 전환해 가장 가치 높은 개선 하나씩 수행한다.
 9. 프로젝트 완료 조건을 만족하고 가치 있는 다음 작업이 없으면 스스로 루프를 종료한다.
 
@@ -29,6 +29,9 @@ description: 단 하나의 진입점으로 프로젝트를 자율 개발용으�
 - push, deploy, publish, 결제, 외부 메시지는 별도 명시적 승인 없이는 실행하지 않는다.
 - `dangerously-bypass`, `yolo`, 무제한 권한 모드는 기본값으로 사용하지 않는다.
 - 한 반복에는 대상 하나와 검증 가능한 수직 기능 하나만 처리한다.
+- 반복마다 새 AI 세션을 사용하고 대화가 아닌 프로젝트 파일을 지속 메모리로 취급한다. 긴 대화의 컨텍스트 드리프트를 다음 작업으로 넘기지 않기 위해서다.
+- `loop/STOP`은 새 iteration 시작을 막는 graceful stop으로 취급하고 이미 시작한 바퀴는 안전한 checkpoint까지 마친다.
+- 같은 실패/사용자 지적이 두 번 반복되면 규칙으로 승격하고, 기계가 측정 가능하면 검사로 만든다.
 - 한 프로젝트에서 Remote 루프와 CLI 루프를 동시에 실행하지 않는다.
 
 ## 입력 해석
@@ -64,7 +67,7 @@ description: 단 하나의 진입점으로 프로젝트를 자율 개발용으�
 
 1. 대상 프로젝트 루트를 확정한다.
 2. 적용 가능한 `AGENTS.md`, README, manifest, 기존 loop/docs 상태를 읽는다.
-3. Git 저장소/branch/HEAD/baseline/status를 확인한다.
+3. VCS를 감지한다. 기존 SVN working copy면 SVN을 source-of-truth로 유지하고 그 안에 Git을 중첩 초기화하지 않는다. 기존 Git이면 branch/HEAD/baseline/status를 확인한다. VCS가 없을 때만 Git init 후보로 본다.
 4. package.json, pyproject.toml, Makefile 등에서 실제 test/lint/typecheck/build 명령을 찾는다.
 5. 단일 앱, 모노레포, frontend, backend, fullstack, game, CLI, docs/data 중 가장 좁은 프로필을 선택한다.
 6. 파일명과 경로만으로 비밀 가능 파일을 탐지하며 내용은 열지 않는다.
@@ -80,8 +83,8 @@ description: 단 하나의 진입점으로 프로젝트를 자율 개발용으�
 - INBOX는 사용자 소유이므로 기존 내용은 임의로 소비하거나 덮어쓰지 않는다.
 - PROJECTS는 실제 앱 경로와 실제 gate만 기록한다.
 - RUN_STATE가 최근 RUNNING이면 초기화하지 않고 중복 실행을 막는다.
-- `.gitignore`에는 비밀/로그/runtime/build/dependency 산출물만 필요한 만큼 추가한다.
-- 안전한 baseline이 없으면 `commit_allowed: false`로 시작한다.
+- Git 프로젝트에서는 `.gitignore`에 비밀/로그/runtime/build/dependency 산출물만 필요한 만큼 추가한다. SVN 프로젝트에서는 기존 ignore/working-copy 정책을 보존한다.
+- 안전한 VCS baseline이 없으면 `commit_allowed: false`로 시작한다.
 
 ## Phase 3. 실행 모드 선택
 
@@ -114,7 +117,7 @@ Remote 반복의 작업 선택 순서:
 Remote 예약 프롬프트의 핵심:
 `AI Folder Remote로 대상 프로젝트의 loop/EXECUTION.md와 loop/PROMPT.md를 먼저 읽고, 선택 규칙에 따라 정확히 한 개의 수직 작업을 구현·검증·기록하라. local AI CLI, push, deploy는 금지한다.`
 
-Remote continuous UI driver 기준본은 `assets/remote/driver/windows-ui.ps1`과 `assets/remote/driver/chatgpt-remote-loop.ps1`이다. 설치된 AI Folder Remote 구현을 보완/업데이트할 때 이 기준본과 동기화한다. 드라이버는 ChatGPT Windows 앱에서 매번 **새 채팅**을 열고, `Work`가 아닌 `Chat` 모드임을 확인한 뒤 composer의 `+` 메뉴를 실제 클릭한다. 메뉴에서 정확히 `AI Folder Remote`를 찾고, 화면 아래에 있으면 메뉴를 스크롤한 다음 실제 클릭해 **앱 토큰으로 선택**해야 한다. 접근성 요소가 노출되면 그 경계를 우선 사용하고, 노출되지 않는 경우에만 현재 앱 창 또는 composer 크기에 대한 비율 좌표를 사용한다. 고정 절대 좌표와 `@AI Folder Remote` 일반 텍스트 입력은 성공으로 취급하지 않는다. 프롬프트 제출 뒤 `Work에서 계속할까요?` 같은 라우팅 팝업은 즉시 뜬다고 가정하지 말고 기본 30초 동안 감시하며, 나타나면 `여기서 채팅 계속하기`를 자동 선택한다. 버튼 문자열이 달라도 `Work로 계속` 버튼과 같은 행의 왼쪽 형제 버튼을 구조적 fallback으로 사용한다. Enter를 보냈다는 사실만으로 성공 처리하지 말고 composer가 실제로 비워졌는지 확인하며, 필요하면 제출 버튼을 재시도한다. 응답 완료 판정은 composer의 실제 `중지`/stop 버튼만 사용하고, 완료 뒤 남는 `생각 중` 사고 과정 토글은 busy 신호로 해석하지 않는다. 한 응답이 길이 한계로 RUNNING 작업을 미완료 보고하면 새 claim을 만들지 말고 새 Chat 채팅에서 기존 claim/RUN_STATE를 이어 복구한다. 제출이 검증되지 않거나 RUN_STATE start handshake가 오지 않으면 새 채팅으로 최대 3회 재시도하고 시도 사이 기본 5초를 둔다. start handshake는 RUN_STATE가 실제 `RUNNING` 또는 `RECOVERING`일 때만 인정하며 run_id/heartbeat 변화만으로 인정하지 않는다. 3회 실패 시 `START_FAILED`로 안전 중단한다. 단, RUN_STATE가 이미 RUNNING/RECOVERING으로 바뀐 뒤의 실행 타임아웃은 중복 수정을 막기 위해 자동 새 세션 재시도를 하지 않는다.
+Remote continuous의 이식 가능한 기준본은 `assets/remote/browser-driver/`다. 실제 Chrome의 persistent automation profile을 한 루프 동안 유지하고 Playwright DOM locator로 새 Chat 채팅, composer `+` 메뉴, `AI Folder Remote` 토큰, 제출, 응답 idle을 검증한다. 설치 시 이 폴더를 프로젝트의 `loop/browser-driver/`에 병합하되 사용자별 profile 경로는 템플릿에 하드코딩하지 않는다. `@AI Folder Remote` 일반 텍스트는 토큰 선택으로 인정하지 않으며, 화면 밖 메뉴 항목은 DOM 스크롤로 노출한 뒤 선택한다. 오래된 RUNNING/RECOVERING은 같은 active task와 claim만 복구하고 새 claim을 만들지 않는다. 복구 세션은 exact claim 확인 직후 heartbeat를 갱신해 adoption handshake를 남기고, 실제 busy 응답은 단순 watch timeout만으로 강제 중단하지 않는다. `loop/STOP`은 현재 iteration 종료 후 다음 채팅을 막는 graceful stop이다. 자세한 실행·재시도·중복 방지 계약은 `references/chatgpt-automation.md`와 `references/loop-reliability.md`를 따른다. `assets/remote/driver/`의 Windows 앱 드라이버는 브라우저 방식이 검증되지 않은 설치의 fallback으로 보존하며 두 루프를 동시에 실행하지 않는다.
 
 예약 시간/주기가 사용자 요청에 있으면 파일럿 PASS 후 ChatGPT Automation을 생성한다.
 시간 정보가 없으면 Automation을 임의 생성하지 않고 `scheduler: READY_FOR_SCHEDULE`로 기록한다.
@@ -147,19 +150,21 @@ CLI 우선순위는 사용자 지정 > 기존 EXECUTION 설정 > 검증 가능�
 
 모두 만족하면 STATUS에 `project_state: PROJECT_COMPLETE`, `next_objective: none`을 기록하고 자동 driver가 새 iteration을 만들지 않게 한다. 단순히 "더 예쁘게", "리팩터링 가능" 같은 저가치 후보만 남은 경우도 완료로 본다. 사용자가 새 READY 작업을 넣거나 `개발 재개`를 요청하면 ACTIVE로 되돌릴 수 있다.
 
-## Phase 5. Preflight와 파일럿
+## Phase 5. Preflight와 2-iteration 파일럿
 
 1. 프로젝트별 gate가 실제 존재하는 명령인지 재확인한다.
-2. 비밀/생성물/runtime ignore 상태를 확인한다.
+2. 비밀/생성물/runtime ignore 상태와 현재 VCS 정책을 확인한다.
 3. Remote면 대표 앱의 build/test-only preflight를 수행한다.
 4. CLI면 `powershell -File loop/loop.ps1 -PreflightOnly`를 수행한다.
-5. parser와 `git diff --check`를 가능한 범위에서 확인한다.
-6. preflight PASS 후 실제 수직 작업 1개를 파일럿으로 수행한다.
-7. 파일럿 실패 시 무한 루프/예약을 시작하지 않고 STATUS에 BLOCKED를 남긴다.
+5. parser와 VCS별 whitespace/status 검사를 가능한 범위에서 확인한다.
+6. preflight PASS 후 제한된 **두 iteration**을 실행한다. 각 iteration은 새 세션이어야 하며 같은 대화에 이어 쓰지 않는다.
+7. 두 로그에서 submit/start-or-adopt handshake, 작업 수행, Quality Gate, terminal closeout, 다음 iteration 경계를 직접 확인한다.
+8. 관측된 시작/실행 시간으로 timeout, 최대 턴, stale 기준을 조정한다. 감으로 값을 정하지 않는다.
+9. 중복 세션, 미완료 claim, retry storm, 비정상 종료가 하나라도 보이면 무한 루프/자동 시작/예약을 활성화하지 않고 원인을 먼저 수정한다.
 
 ## Phase 6. 실제 시작
 
-파일럿 PASS 후 선택된 모드만 활성화한다.
+2-iteration 파일럿과 로그 검토가 PASS한 뒤 선택된 모드만 활성화한다. 사용자가 로그인 자동 시작/백그라운드 상시 실행을 원하면 OS에 맞는 서비스 계층(Windows 작업 스케줄러, macOS launchd, Linux systemd)을 사용하되 등록과 활성화를 분리한다. 자동 실행 환경은 평소 shell PATH를 상속한다고 가정하지 말고 필요한 실행 경로를 명시한다. 정상 종료(`STOP`, `PROJECT_COMPLETE`)는 그대로 두고 비정상 crash만 재시작한다. 켜기/끄기/상태 보기 제어 경로를 README에 남긴다.
 
 ### chatgpt_remote
 - 예약 정보가 있으면 ChatGPT Automation을 생성할 수 있다.
@@ -204,6 +209,7 @@ Remote ↔ CLI 전환 시:
 - 실행 모드 판단: `references/execution-modes.md`
 - CLI별 안전한 headless 명령 기본형: `references/cli-command-templates.md`
 - ChatGPT Automation 생성 계약: `references/chatgpt-automation.md`
+- 장시간 루프 신뢰성/복구/STOP/로그 규칙: `references/loop-reliability.md`
 - 사용자가 기억할 최소 명령: `references/usage.md`
 - 첫 실행 안내: `references/first-run-guide.md`
 - 자율 개선 평가 규칙: `references/autonomous-improvement.md`

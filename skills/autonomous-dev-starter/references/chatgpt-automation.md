@@ -1,6 +1,6 @@
 # ChatGPT Automation Handoff
 
-Use this only after bootstrap/preflight and one real pilot iteration PASS.
+Use this only after bootstrap/preflight and two fresh-session pilot iterations PASS with both logs reviewed for duplicate runs, unfinished claims, retry storms, and clean terminal/UI-idle handoff.
 
 ## Creation conditions
 
@@ -29,16 +29,53 @@ A schedule run is one loop iteration, not an endless process. Recurrence is owne
 
 ## Remote continuous alternative
 
-When AI Folder Remote exposes `start_chatgpt_remote_loop`, `chatgpt_remote_loop_status`, and `stop_chatgpt_remote_loop`, a user may choose continuous Remote instead of a time schedule. It must launch one fresh ChatGPT chat per iteration, positively verify that the ChatGPT window is foreground, wait for the new-chat WebView composer to stabilize, click the composer, then select the AI Folder Remote mention without keyboard-layout/IME corruption. Choose `Chat으로 계속하기` whenever ChatGPT presents a Work-vs-Chat routing choice, verify that the composer actually submitted, then wait for the RUN_STATE start/finish handshake. If the composer remains populated after retries, or the window cannot be brought foreground, treat launch as failed rather than waiting for a false handshake. Stop on STOP, circuit-open, SKIP/BLOCKED/FAIL, or timeout. Do not run this driver together with a scheduled Automation or local CLI loop.
+When AI Folder Remote exposes continuous Remote capability, use
+`assets/remote/browser-driver/` as the portable driver source. Install it as
+`loop/browser-driver/` in the target project. It launches real Chrome with one
+persistent automation profile, closes restored extra tabs, and keeps one
+Playwright context and one reusable tab for the entire loop. Each iteration
+navigates that tab to a fresh ChatGPT `/` page, so a prompt is never appended to
+the preceding conversation.
 
-For installations that include the separate browser driver, prefer semantic
-web selectors over window coordinates: locate the ChatGPT composer by role,
-commit `AI Folder Remote`, verify its `/plugins/` link token inside the
-composer, and only then submit. Use a dedicated browser profile with one-time
-manual login; never read or print profile contents or credentials. Keep the
-Windows-app driver unchanged as a fallback, and never run both loops together.
+Use DOM locators and events rather than desktop coordinates or foreground
+focus. Select and verify Chat rather than Work, open the composer `+` menu,
+scroll the menu DOM when necessary, choose the exact `AI Folder Remote` row,
+and verify a structural plugin token such as its `/plugins/` link before adding
+the prompt. Plain `@AI Folder Remote` text is not success. Verify that submit
+clears the composer, handle a late Continue-in-Chat routing dialog, and treat
+only the actual stop-generation control as busy.
 
-If an installation already maintains a non-default, separately authenticated
-browser profile for ChatGPT, a normal Selenium driver may reuse that profile
-without copying or inspecting it. Do not use a person’s default Chrome profile,
-do not remove profile lock files, and fail safely when that profile is in use.
+The RUN_STATE start handshake must include an actual RUNNING or RECOVERING
+state. A stale active run may be resumed only when the same active task and
+run_id and existing claim remain; the recovery agent must refresh `heartbeat_at` immediately after verifying that exact claim; never create a
+replacement claim. If a submitted response is still busy at startup timeout,
+keep observing that same response instead of opening a duplicate chat; a watch timeout alone never authorizes Stop or a fresh-chat retry. After terminal RUN_STATE,
+wait for UI idle before the next fresh chat. Treat `loop/STOP` as graceful: finish an already submitted/adopted iteration, then prevent the next chat. Circuit-open/PAUSED remain hard-stop conditions. Also stop on
+SKIP/BLOCKED/FAIL or unsafe profile reuse.
+
+While observing a RUNNING/RECOVERING task, re-evaluate its heartbeat in bounded
+intervals. Recover only when the heartbeat is stale *and* the saved response is
+idle; resume the same claim in a fresh chat, never create another claim.
+Treat `FAIL`, `BLOCKED`, and `SKIP` as terminal before considering state, so a
+RECOVERING handoff cannot lead to another automatic fresh chat.
+
+An iteration can occasionally finish before the polling loop observes its
+RUNNING transition. In that case, a new terminal `last_result` together with a
+non-running state is a conclusive terminal handshake for the submitted
+iteration. Accept it and continue closeout; never open retry chats merely
+because the transient start state was missed.
+
+Treat a persistent visible connection-lost notice as a special startup fault.
+Only when RUN_STATE and the complete claim-directory signature are still
+unchanged after the grace period may the driver stop the response through the
+DOM stop button, wait for UI idle, and retry in a fresh chat. If either state or
+claims changed, never abort or retry automatically. While waiting for the
+startup response, poll RUN_STATE concurrently so a late RUNNING handshake is
+reported immediately instead of leaving the phase stuck at WAIT_START_RESPONSE.
+
+Use a project-owned profile by default or an explicitly selected, separately
+authenticated automation profile. Never read, copy, or print profile contents
+or credentials, never delete profile lock files blindly, and fail safely when
+another program owns the profile. Keep `assets/remote/driver/` as the unchanged
+Windows-app fallback and never run browser, app, scheduled, or local CLI loops
+together.

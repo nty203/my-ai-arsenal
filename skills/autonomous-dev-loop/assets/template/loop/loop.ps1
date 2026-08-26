@@ -16,13 +16,14 @@ function Set-Default {
 }
 
 Set-Default "PROJECT_PROFILE" "auto"
+Set-Default "VCS_PREFERENCE" "auto"
 Set-Default "SLEEP_SECONDS" 5
 Set-Default "MAX_LOOPS" 0
 Set-Default "AGENT_TIMEOUT_SECONDS" 1800
 Set-Default "MAX_RETRIES" 2
 Set-Default "RETRY_BASE_SECONDS" 10
 Set-Default "MAX_CONSECUTIVE_FAILURES" 3
-Set-Default "QUALITY_COMMANDS" @("git diff --check")
+Set-Default "QUALITY_COMMANDS" @()
 Set-Default "ALLOW_AGENT_COMMIT" $true
 Set-Default "ALLOW_PUSH_OR_DEPLOY" $false
 Set-Default "RUNTIME_DIR" "loop\runtime"
@@ -39,6 +40,46 @@ $RuntimePath = Join-Path $ProjectRoot $RUNTIME_DIR
 $LogPath = Join-Path $ProjectRoot $LOG_DIR
 New-Item -ItemType Directory -Force -Path $RuntimePath, $LogPath | Out-Null
 
+function Get-VcsMode {
+    $gitCommand = Get-Command "git" -ErrorAction SilentlyContinue
+    $svnCommand = Get-Command "svn" -ErrorAction SilentlyContinue
+    $gitInside = $false
+    $svnInside = $false
+
+    if ($null -ne $gitCommand) {
+        & $gitCommand.Source rev-parse --is-inside-work-tree *> $null
+        $gitInside = $LASTEXITCODE -eq 0
+    }
+    if ($null -ne $svnCommand) {
+        & $svnCommand.Source info --non-interactive *> $null
+        $svnInside = $LASTEXITCODE -eq 0
+    }
+
+    if ($VCS_PREFERENCE -eq "git") {
+        if (-not $gitInside) { throw "VCS_PREFERENCE=git but this project is not a Git working tree." }
+        return "git"
+    }
+    if ($VCS_PREFERENCE -eq "svn") {
+        if (-not $svnInside) { throw "VCS_PREFERENCE=svn but this project is not an SVN working copy." }
+        return "svn"
+    }
+    if ($VCS_PREFERENCE -ne "auto") { throw "Unsupported VCS_PREFERENCE: $VCS_PREFERENCE" }
+
+    if ($gitInside -and $svnInside) {
+        $gitRemotes = @(& $gitCommand.Source remote 2>$null | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($gitRemotes.Count -gt 0) { return "git" }
+        return "svn"
+    }
+    if ($gitInside) { return "git" }
+    if ($svnInside) { return "svn" }
+    return "none"
+}
+
+$VCS_MODE = Get-VcsMode
+if ($QUALITY_COMMANDS.Count -eq 0 -and $VCS_MODE -eq "git") {
+    $QUALITY_COMMANDS = @("git diff --check")
+}
+
 function Test-Preflight {
     $required = @("loop\PROMPT.md", "docs\DESIGN.md", "docs\STATUS.md", "docs\feedback\INBOX.md")
     foreach ($file in $required) {
@@ -49,9 +90,8 @@ function Test-Preflight {
     if ([string]::IsNullOrWhiteSpace($AGENT_CMD)) {
         throw "AGENT_CMD is empty in loop\env.ps1"
     }
-    & git rev-parse --is-inside-work-tree *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw "Project root is not a Git repository: $ProjectRoot"
+    if ($VCS_MODE -eq "none") {
+        throw "Project root is not a Git or SVN working copy: $ProjectRoot"
     }
 }
 
@@ -69,6 +109,7 @@ function Write-RunContext {
 - generated_at: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")
 - project_root: $ProjectRoot
 - project_profile: $PROJECT_PROFILE
+- vcs_mode: $VCS_MODE
 - loop: $LoopNumber
 - attempt: $Attempt
 - log_file: $LogFile
@@ -128,6 +169,7 @@ if ($PreflightOnly) {
     Write-Host "Preflight PASS"
     Write-Host "Project: $ProjectRoot"
     Write-Host "Profile: $PROJECT_PROFILE"
+    Write-Host "VCS: $VCS_MODE"
     Write-Host "Agent: $AGENT_CMD"
     Write-Host "Quality commands: $($QUALITY_COMMANDS -join '; ')"
     exit 0

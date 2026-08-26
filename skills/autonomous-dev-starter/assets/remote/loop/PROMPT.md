@@ -11,11 +11,13 @@ Complete exactly one target and one verifiable vertical slice.
 1. Confirm PC connection with a harmless read.
 2. Read `loop/EXECUTION.md`, `loop/RUN_STATE.md`, and `docs/feedback/INBOX.md`.
 3. If `circuit_open: true`, modify nothing and return BLOCKED.
-4. Treat a recent RUNNING state as a duplicate run and return SKIP.
-5. Select work in this order: READY user task > verified blocker/regression > explicit planned task > smallest verifiable DESIGN gap.
-6. Only when planned work is exhausted and both `auto_continue: true` and `autonomous_improvement_enabled: true`, run autonomous improvement evaluation. Generate at most the configured candidate limit and select one evidence-backed, verifiable improvement.
-7. If `project_state: PROJECT_COMPLETE`, or no valuable task can be selected safely, do not invent work; return SKIP/COMPLETE without source changes.
-7. Before implementation, write `state: RUNNING`, a fresh `run_id`, `active_task`, `started_at`, and `heartbeat_at` to RUN_STATE. This is the Remote continuous start handshake.
+4. If the incoming instruction explicitly says to recover the existing RUN_STATE/claim, do not select a new task and do not create a new run_id. Verify that `active_task`, `run_id`, and the existing claim all match, then immediately refresh `heartbeat_at` as the recovery-adoption handshake before deeper reading. If that exact claim cannot be verified, return BLOCKED instead of inventing a replacement.
+5. Otherwise, treat a recent RUNNING/RECOVERING state as a duplicate run and return SKIP.
+6. If `loop/STOP` already exists before a new iteration starts, do not claim new work; return SKIP after recording a terminal result. If STOP appears after this iteration has been adopted/started, finish this one safely and let the orchestrator stop before the next iteration.
+7. Select work in this order: READY user task > verified blocker/regression > explicit planned task > smallest verifiable DESIGN gap.
+8. Only when planned work is exhausted and both `auto_continue: true` and `autonomous_improvement_enabled: true`, run autonomous improvement evaluation. Generate at most the configured candidate limit and select one evidence-backed, verifiable improvement.
+9. If `project_state: PROJECT_COMPLETE`, or no valuable task can be selected safely, do not invent work; return SKIP/COMPLETE without source changes.
+10. For a fresh iteration only, write `state: RUNNING`, a fresh `run_id`, `active_task`, `started_at`, and `heartbeat_at` to RUN_STATE before implementation. This is the Remote continuous start handshake.
 
 Generated tasks must not overwrite the user-owned INBOX. Record `task_source` as `user`, `recovery`, `planned`, `design_gap`, or `autonomous_improvement`.
 
@@ -26,7 +28,8 @@ Generated tasks must not overwrite the user-owned INBOX. Record `task_source` as
 3. `loop/PROJECTS.md` for target path and Quality Gates.
 4. Relevant Wiki index/pages if present.
 5. Target app README, manifest, entry points, source, and tests.
-6. Git status and existing contents of files to be changed.
+6. Detect the repository VCS before status/checkpoint work. Use Git status/diff only for Git, SVN status/diff only for SVN, and never initialize nested Git inside an existing SVN working copy.
+7. Read the existing contents of every file to be changed before editing it.
 
 ## Scope and safety
 
@@ -54,9 +57,10 @@ Never create work merely to keep the loop alive.
 2. Reproduce current behavior when practical.
 3. Make the smallest change that completes one vertical slice.
 4. Run only the target's registered and actually existing gates.
-5. Run `git diff --check` when Git is available.
+5. Run the VCS-appropriate whitespace/status checks (`git diff --check` for Git; the project's registered SVN checks for SVN).
 6. Check relevant normal, boundary, and failure paths.
-7. For UI changes, inspect the rendered screen or build output when possible.
+7. For anything with a visible UI, run it, capture at least one representative screenshot, and inspect that image directly. Record the screenshot/evidence path. Code/test PASS is not visual QA PASS.
+8. If the same defect, operator complaint, or recovery failure has occurred twice, promote the lesson into a durable rule. If it is mechanically measurable, add or strengthen an automated check so the third occurrence is prevented.
 
 ## Self-healing
 

@@ -4,7 +4,7 @@
 
 ## 처음 시작할 때
 
-가장 간단한 명령은 `개발 시작`이다. Starter가 프로젝트 구조, Git 상태, Quality Gate, 실행 모드를 진단하고 안전한 파일럿 1회를 준비한다.
+가장 간단한 명령은 `개발 시작`이다. Starter가 프로젝트 구조, 기존 VCS(Git/SVN), Quality Gate, 실행 모드를 진단하고 새 세션 기준의 제한된 파일럿 2회를 준비한다. 두 로그를 검토하기 전에는 무한 루프나 로그인 자동 시작을 활성화하지 않는다.
 
 원하는 실행 방식이 있으면 처음부터 말할 수 있다.
 - `ChatGPT Remote로 개발 시작` — ChatGPT + AI Folder Remote
@@ -19,7 +19,7 @@ Starter는 첫 실행에서 현재 모드, 자동 개선 여부, 의견 넣는 �
 - `개발 계속` — 저장된 방식으로 다음 iteration 1회 진행
 - `Remote 연속 개발 시작` — 연속 루프 시작
 - `Remote 연속 개발 상태` — 현재 상태만 확인
-- `루프 중지` — 현재 backend 중지
+- `루프 중지` — 새 iteration 시작을 막는다. 이미 시작된 iteration은 안전한 closeout까지 마친 뒤 중지한다(긴급 PAUSED는 별도).
 - `Remote 연속 개발 재개` / `개발 재개` — 중지 또는 PROJECT_COMPLETE 이후 새 작업과 함께 다시 활성화
 - `Remote로 전환` / `CLI로 전환` — 안전하게 실행 backend 변경
 
@@ -55,4 +55,4 @@ READY 사용자 작업은 자동 생성 작업보다 항상 우선한다. 이미
 
 각 작업은 새 ChatGPT 채팅에서 실행될 수 있다. 대화 기억 대신 `INBOX`, `STATUS`, `RUN_STATE`, Wiki가 프로젝트의 지속 메모리 역할을 한다. 따라서 사용자 의견과 검증 결과가 다음 채팅에도 전달된다.
 
-ChatGPT Windows 앱에서 AI Folder Remote 호출 후 `Work에서 계속할까요?` 팝업이 늦게 뜰 수 있다. Remote continuous 드라이버는 프롬프트 제출 뒤 기본 30초 동안 이를 감시하고 `여기서 채팅 계속하기`를 자동 선택한다. 그래도 start handshake가 없으면 새 채팅으로 최대 3회 재시도한 뒤 `START_FAILED`로 중단한다.
+Remote continuous의 기본 구현은 스킬에 포함된 persistent Chrome DOM 드라이버다. 별도 자동화 프로필로 로그인한 뒤 `loop/browser-driver/browser-ui.ps1 -Action Probe`가 Chat 모드와 `AI Folder Remote` 토큰을 비제출 상태로 확인해야 실제 루프를 시작한다. 루프는 한 브라우저 탭을 재사용하되 작업마다 `/` 새 채팅으로 이동하며, 현재 응답과 RUN_STATE가 모두 끝나기 전에는 다음 채팅을 열지 않는다. 브라우저 검증이 불가능한 환경에서만 기존 Windows 앱 드라이버를 fallback으로 사용한다.

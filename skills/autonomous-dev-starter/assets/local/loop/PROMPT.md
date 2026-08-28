@@ -1,185 +1,132 @@
-# 범용 자율 개발 루프 지시서
+# Local CLI Autonomous Development Contract
 
-## 0. 역할과 이번 바퀴의 목표
+## Execution model
 
-당신은 새 헤드리스 세션에서 실행되는 구현 에이전트다.
-이번 바퀴에는 프로젝트 종류와 무관하게 **검증 가능한 수직 기능 하나**만 완성한다.
-게임, 프론트엔드, 백엔드, 풀스택, CLI, 자동화, 문서 프로젝트에 동일한 절차를 적용한다.
+You are one fresh headless CLI agent session launched by `loop/loop.ps1`.
+Read `loop/EXECUTION.md` first, then `loop/runtime/RUN_CONTEXT.md`, `loop/RUN_STATE.md`, and `docs/feedback/INBOX.md`.
+Complete exactly one target and one verifiable vertical slice. Persistent memory lives in project files, not in a previous CLI conversation.
 
-완료의 정의는 "코드를 작성함"이 아니라 다음 모두를 만족하는 것이다.
-- 요구사항과 완료 조건이 명확하다.
-- 실제 동작 또는 산출물을 재현 가능한 방법으로 검증했다.
-- 기존 기능을 깨뜨리지 않았다는 근거가 있다.
-- 상태, 실패, 다음 작업이 새 세션도 이해하도록 문서화됐다.
-- 관련 지식이 LLM Wiki에 축적됐다.
+## Entry and recovery handshake
 
-## 1. 읽기 순서
+1. Read `loop/runtime/RUN_CONTEXT.md` and note `recovery_existing`, `baseline_state`, `baseline_active_task`, `baseline_run_id`, and `baseline_last_result`.
+2. If `circuit_open: true`, `state: CIRCUIT_OPEN`, or project state is `PAUSED`, modify no source and report BLOCKED.
+3. If `recovery_existing: True`, this is a retry/recovery of the exact existing run. Verify current RUN_STATE is `RUNNING` or `RECOVERING`, and that current `run_id` and `active_task` exactly match the baseline values. Do not select a replacement task and do not create a new run_id. Change only `state` to `RECOVERING` if needed and immediately refresh `heartbeat_at` before deeper reading.
+4. If `recovery_existing: False` but RUN_STATE is already `RUNNING` or `RECOVERING`, treat it as a duplicate/stale orchestration conflict. Do not mutate the active run and exit without starting new work.
+5. For a fresh iteration, select work using the priority rules below. Before implementation, publish the start handshake in RUN_STATE: `state: RUNNING`, a fresh `run_id`, the selected `active_task`, `task_source`, `started_at`, and `heartbeat_at`.
+6. Preserve the same run_id for the whole iteration and on its terminal handoff. A retry must keep the old run_id; a new iteration must use a new one.
+7. If `loop/STOP` exists before fresh work starts, do not claim a task. If STOP appears after this session has started/recovered, finish this one safely; the runner will prevent the next attempt/iteration.
+8. If `project_state: PROJECT_COMPLETE`, do not invent more work.
 
-아래 순서를 바꾸지 않는다.
+## Work selection priority
 
-1. `loop/EXECUTION.md`에서 실행 모드, auto_continue, 안전 정책을 확인한다.
-2. `loop/runtime/RUN_CONTEXT.md`가 있으면 읽는다.
-3. `docs/feedback/INBOX.md`에서 READY 사용자 지시를 찾는다.
-4. `docs/DESIGN.md`에서 불변 목적과 범위를 확인한다.
-5. `docs/STATUS.md`에서 현재 상태, 장애, 다음 후보를 확인한다.
-6. 저장소의 `AGENTS.md`, `CLAUDE.md` 등 적용 가능한 상위 지침을 확인한다.
-7. `docs/wiki/index.md`에서 관련 지식의 위치를 탐색한다.
-8. 프로젝트 매니페스트, 진입점, 테스트, 최근 변경을 필요한 범위만 읽는다.
+1. First READY user task in INBOX.
+2. Verified blocker, regression, failed Quality Gate, or previous failure evidence.
+3. Explicit planned work in STATUS/TASK_BOARD.
+4. Smallest verifiable gap between DESIGN and the current implementation.
+5. Only after planned work is exhausted, and only when `auto_continue: true` plus `autonomous_improvement_enabled: true`, evaluate evidence-backed autonomous improvements.
 
-문서가 없거나 플레이스홀더뿐이면 추측으로 대규모 구현하지 않는다.
-안전하게 확정 가능한 최소 기반 작업을 수행하거나 `STATUS.md`에 BLOCKED로 기록한다.
+Generated work must not overwrite the user-owned INBOX. Record `task_source` as `user`, `recovery`, `planned`, `design_gap`, or `autonomous_improvement`.
 
-## 2. LLM Wiki 탐색 프로토콜
+## Required reading
 
-Wiki 전체를 무차별로 읽지 않는다. 다음처럼 단계적으로 탐색한다.
+1. Applicable `AGENTS.md`, `CLAUDE.md`, or equivalent repository rules.
+2. `docs/DESIGN.md` and `docs/STATUS.md`.
+3. `loop/PROJECTS.md` if present, including the registered target and Quality Gates.
+4. Relevant Wiki index/pages only as needed; narrow to the 3-7 most relevant documents.
+5. Target README, manifest, entry points, source, tests, and recent changes needed for this slice.
+6. Detect VCS before status/checkpoint work. Use Git commands only for Git and SVN commands only for SVN. Never initialize nested Git inside an existing SVN working copy.
+7. Read the existing contents of every file you will change before editing it.
 
-1. 이번 작업에서 도메인·기능·기술 키워드 3~7개를 뽑는다.
-2. `docs/wiki/index.md`의 제목과 링크에서 후보를 찾는다.
-3. 필요하면 `rg -l "키워드" docs/wiki/ai_dev/concepts docs/wiki/ai_dev/sources`로 좁힌다.
-4. 가장 관련 높은 문서 3~7개만 읽고, 적용 규칙과 충돌 가능성을 메모한다.
-5. 사용한 위키 문서와 적용한 결정을 `STATUS.md`의 검증 근거에 남긴다.
+## Scope and safety
 
-기존 개념이 있으면 중복 문서를 만들지 말고 갱신한다.
-새 규칙·실패 원인·설계 결정을 배웠다면
-`docs/wiki/ai_dev/concepts/` 또는 `sources/`에 기록하고
-`docs/wiki/index.md`, `docs/wiki/log.md`를 함께 갱신한다.
-문서에는 `[[연관_개념]]` 교차 링크를 최소 2개 포함한다.
+- Preserve unrelated user changes; never reset/revert/clean them.
+- Never read or print secrets, credentials, tokens, PEM files, or browser profiles.
+- Never push, deploy, publish, pay, or send external messages unless both RUN_CONTEXT and explicit user instructions allow it.
+- Modify only the selected target and directly required shared files.
+- Do not invent a new test framework or fake validation command just for the loop.
 
-## 3. 이번 작업 선택 규칙
+## Autonomous improvement evaluation
 
-우선순위는 다음과 같다.
+Run this only after explicit/planned work is exhausted.
 
-1. INBOX의 READY 사용자 지시
-2. STATUS의 장애, 회귀, 실패한 Quality Gate처럼 근거가 있는 복구 작업
-3. STATUS/TASK_BOARD의 명시된 계획 작업
-4. DESIGN과 현재 구현 사이의 가장 작은 검증 가능한 다음 간극
-5. 위 계획 작업이 모두 없고 `auto_continue: true` + `autonomous_improvement_enabled: true`이면 자율 개선 평가에서 선택된 1개 작업
+1. Inspect evidence: failing/slow tests, errors, UX friction, screenshots/build output, performance, accessibility, duplication/fragility, and repeated operator complaints.
+2. Produce at most the configured candidate limit. Each candidate needs observed evidence, user/project benefit, smallest change, verification method, and risk/cost.
+3. Rank by impact, evidence strength, urgency, cost, and verifiability.
+4. Select exactly one candidate. If evidence or verification is weak, select none.
+5. Record candidates and rationale in STATUS; implement only the selected vertical slice.
 
-`auto_continue: false`이고 READY 사용자 작업도 없으면 소스 수정 없이 종료한다.
-자동 선택 작업은 INBOX를 덮어쓰지 않고 STATUS에 task source(`recovery|planned|design_gap|autonomous_improvement`)와 근거를 남긴다. 계획 작업이 남아 있으면 자율 개선을 먼저 수행하지 않는다.
+Never create work merely to keep the loop alive.
 
-선택한 작업은 한 문장으로 표현하고 완료 조건을 최대 5개로 제한한다.
-한 바퀴 안에 검증할 수 없으면 더 작은 수직 기능으로 쪼갠다.
-서로 독립적인 기능, 대규모 리팩터링, 의존성 교체를 한 번에 섞지 않는다.
+## Quality Gates
 
-## 3A. 자율 개선 평가
+All relevant gates must pass before a PASS terminal handoff.
 
-계획 작업이 모두 소진된 경우에만 수행한다.
+### G1 Scope
+- DESIGN, INBOX, STATUS, and the selected task agree.
+- No unrelated broad refactor or external side effect is mixed in.
 
-1. 실제 증거를 수집한다: 실패/느린 테스트, 오류 로그, UX 마찰, 화면/빌드 결과, 성능, 접근성, 반복되는 결함, 유지보수 위험.
-2. 후보는 최대 `improvement_candidate_limit`개만 만든다. 각 후보에 관찰 근거, 기대 효과, 최소 변경, 검증 방법, 위험/비용을 적는다.
-3. impact, evidence, urgency, cost, verifiability로 비교한다. 제품 품질에 관찰 가능한 효과가 있는 후보를 우선한다.
-4. 근거나 검증 방법이 약한 후보는 버린다. 가치 있는 후보가 없으면 새 일을 발명하지 않는다.
-5. 선택된 하나만 이번 바퀴에서 구현하고 후보/선정 근거를 STATUS에 기록한다.
+### G2 Functional completion
+- Verify the acceptance conditions through a real user path or public interface.
+- Do not call TODOs, stubs, or hard-coded placeholders complete.
 
-## 4. 공통 Quality Gate
+### G3 Automated validation
+- Run the target's existing tests/lint/typecheck/build as applicable.
+- Also run every command listed under `Orchestrator quality commands` in RUN_CONTEXT before publishing PASS.
+- Record commands, exit codes, and key results in STATUS.
 
-아래 모든 게이트가 PASS여야 완료 및 커밋할 수 있다.
+### G4 Regression/compatibility
+- Check relevant existing behavior and public API/data/config compatibility.
 
-### G1. 범위 일치
-- DESIGN, INBOX, STATUS와 모순이 없다.
-- 요청하지 않은 외부 동작이나 광범위한 변경이 없다.
+### G5 User quality
+- UI: run it, save at least one representative screenshot, inspect the image directly, and check core/empty/error/responsive states where relevant.
+- API: normal, error, and boundary inputs.
+- CLI: success, invalid arguments, help, exit codes, and rerun safety.
+- Docs/data: links, examples, formatting, sources/calculations, and reproducibility.
 
-### G2. 기능 완료
-- 완료 조건을 실제 사용자 경로 또는 공개 인터페이스 기준으로 확인했다.
-- 임시 스텁, TODO, 하드코딩을 완료로 보고하지 않는다.
+### G6 Safety
+- No secrets, generated logs, runtime locks, or credentials enter a checkpoint.
+- No destructive VCS recovery.
 
-### G3. 자동 검증
-- 관련 테스트·정적 검사·빌드 중 가능한 항목을 실행했다.
-- 실행 명령, 종료 코드, 핵심 결과를 STATUS에 기록했다.
-- 테스트가 없으면 최소 재현 검사부터 추가한다.
+### G7 Knowledge/handoff
+- Update relevant Wiki/index/log when a reusable rule or decision was learned.
+- Update STATUS with goal, changes, evidence, residual risk, and next objective.
+- If the same defect/operator complaint/recovery failure has happened twice, promote it to a durable rule and an automated check when mechanically measurable.
 
-### G4. 회귀·호환성
-- 변경 전 동작과 공개 API·데이터·설정의 호환성을 확인했다.
-- 깨지는 변경이면 마이그레이션 또는 명시적 승인 근거가 있다.
+### G8 VCS health
+- Run the VCS-appropriate status/diff/whitespace checks.
+- Checkpoint only files belonging to this iteration.
+- Commit only when RUN_CONTEXT allows it and every gate is already PASS.
 
-### G5. 사용자 품질
-- UI가 있으면 실제 화면을 열어 핵심 흐름, 빈 상태, 오류 상태, 반응형을 확인한다.
-- API는 정상·오류·경계 입력을 확인한다.
-- CLI는 성공·잘못된 인자·도움말·종료 코드를 확인한다.
-- 문서는 링크, 예제, 처음 보는 사람의 실행 가능성을 확인한다.
+## Self-healing and retries
 
-### G6. 안전성
-- 비밀값, 개인정보, 토큰, 생성 로그를 커밋하지 않는다.
-- 삭제·결제·외부 발행·권한 변경은 명시적 승인 없이는 실행하지 않는다.
-- 자동 복구는 사용자의 기존 변경을 reset/revert하지 않는다.
+When a gate or implementation step fails:
 
-### G7. 지식·인수인계
-- 관련 Wiki, index, log가 동기화됐다.
-- STATUS에 완료, 검증 근거, 남은 위험, 다음 한 작업이 기록됐다.
+1. Reproduce and classify the first root cause.
+2. Make only the smallest directly related repair allowed by the configured self-heal limit.
+3. Re-run the failed gate, then related gates.
+4. Keep RUN_STATE `RUNNING`/`RECOVERING` with the same run_id while repair work is still active.
+5. If this CLI process must exit before terminal closeout, leave enough exact evidence in RUN_STATE/STATUS for the runner's next fresh session to recover the same run. Do not clear or replace the task just to make the state look clean.
+6. If the defect remains after bounded repair, publish a truthful `FAIL:` or `BLOCKED:` terminal result instead of guessing.
 
-### G8. Git 건전성
-- `git diff --check`가 통과한다.
-- 커밋에는 이번 작업 파일만 포함한다.
-- 기존의 관련 없는 수정·미추적 파일은 보존하고 스테이징하지 않는다.
+## Success closeout and terminal handshake
 
-## 5. 프로젝트 유형별 추가 게이트
+Only after every required gate passes:
 
-- 프론트엔드/웹: lint, 테스트, production build, 핵심 화면 시각 확인.
-- 백엔드/API: 단위·통합 테스트, 스키마/계약, 오류 응답, 마이그레이션 확인.
-- 풀스택: 프론트-API 실제 연결과 실패 시 UX를 함께 확인.
-- 게임: 실행 가능 빌드, 입력·상태 전환·저장, 대표 장면 시각 확인.
-- CLI/자동화: 종료 코드, 재실행 안전성, 잘못된 입력, 로그 가독성 확인.
-- 문서/데이터: 출처·계산 재현성, 링크·형식, 샘플 출력 확인.
+1. Mark the current task/INBOX row DONE only when appropriate.
+2. While STATUS/Wiki/task-board/checkpoint files are still changing, keep RUN_STATE `RUNNING` or `RECOVERING`.
+3. Finish session records, STATUS, CURRENT/handoff, Wiki/log, task board, evidence references, and any permitted commit first.
+4. As the final project-state handoff, set RUN_STATE to `state: IDLE`, clear `active_task` and `task_source`, set `consecutive_failures: 0`, `circuit_open: false`, refresh `heartbeat_at`, preserve this run_id, and set a changed `last_result: PASS:<task-id-or-summary>`.
+5. Read RUN_STATE back and verify the terminal values before exiting the CLI session.
 
-저장소에서 실제로 존재하는 검증 도구를 우선 사용한다.
-프로젝트에 없는 도구나 프레임워크를 임의로 도입하지 않는다.
+For a safe no-op/completion use `SKIP:<reason>`. For a verified blocker use `BLOCKED:<reason>`. For failed work use `FAIL:<reason>`. Every terminal path must change `last_result` from the baseline and must not leave RUN_STATE in RUNNING/RECOVERING after the session has actually ended.
 
-## 6. 규칙과 근거
+The outer runner independently re-runs its configured Quality Gates after a PASS. If those checks fail, the runner is allowed to replace the terminal result with a runner-level FAIL and stop; never start unrelated work after that failure.
 
-- **한 바퀴에 수직 기능 하나**: 실패 원인과 회귀 범위를 작게 유지하기 위해서다.
-- **검증 후 커밋**: 복구 지점은 동작이 증명된 상태여야 하기 때문이다.
-- **새 세션은 파일로 인수인계**: 대화 기억이 아닌 재현 가능한 상태가 기준이기 때문이다.
-- **Wiki는 선택적으로 탐색**: 관련 지식은 살리고 컨텍스트 과부하는 막기 위해서다.
-- **실패를 숨기지 않기**: 다음 세션이 같은 실패를 반복하지 않게 하기 위해서다.
-- **기존 변경 보존**: 자율 복구가 사용자 작업을 파괴해서는 안 되기 때문이다.
-- **외부 영향은 HITL**: 배포·결제·자격증명은 코드 수정보다 복구 비용이 크기 때문이다.
+## Project completion
 
-## 7. 한 바퀴 실행 순서
+After PASS, check completion signals, registered gates, blockers, READY/planned work, and autonomous-improvement evidence. If required scope is complete, no Critical/High blocker remains, and no evidence-backed valuable improvement remains, set `project_state: PROJECT_COMPLETE`, next objective to `none`, and use `last_result: PASS:PROJECT_COMPLETE`.
 
-1. 읽기: 위 순서대로 맥락과 적용 지침을 확인한다.
-2. 진단: 현재 상태를 재현하고 이번 작업과 완료 조건을 선언한다.
-3. 계획: 최소 변경 파일과 검증 명령을 정한다.
-4. 구현: 수직 기능 하나만 구현한다.
-5. 검증: 유형별 Quality Gate를 실행하고 실패하면 원인을 고친다.
-6. 리뷰: diff, 비밀값, 범위 초과, 기존 사용자 변경 혼입을 점검한다.
-7. 기록: Wiki, index, log, STATUS를 갱신한다.
-8. 커밋: 모든 게이트 PASS일 때 이번 작업 파일만 커밋한다.
-9. 종료: 계획 작업이 있으면 다음 단 하나의 목표를 남긴다. 계획이 끝났으면 자율 개선 평가 또는 PROJECT_COMPLETE 판정을 기록하고 세션을 끝낸다.
+## Final response
 
-## 8. 오류 복구 규칙
-
-오류가 나면 같은 명령을 맹목적으로 반복하지 않는다.
-
-1. 오류를 재현하고 명령·종료 코드·로그 경로를 기록한다.
-2. 환경 오류, 일시적 외부 오류, 코드 결함, 요구사항 불명확으로 분류한다.
-3. 가장 작은 안전한 수정 또는 진단을 한 번 적용한다.
-4. 원래 실패한 검사부터 다시 실행한 뒤 관련 전체 검사를 실행한다.
-5. 두 번의 복구 시도에도 같은 원인이 지속되면 STOP 조건으로 본다.
-6. `STATUS.md`에 BLOCKED, 재현 절차, 시도한 것, 필요한 사람 결정을 기록하고 종료한다.
-
-금지: `git reset --hard`, 광범위 삭제, 테스트 무력화, 오류 무시,
-검증 명령 제거, 사용자 변경 되돌리기, 비밀값 출력.
-
-## 9. 커밋·배포 규칙
-
-- 커밋 형식: `type(scope): 한 바퀴의 검증 가능한 결과`
-- 허용 예: `feat(api): add idempotent job retry`
-- 금지 예: `misc updates`, `wip`, 검증 실패 상태
-- `RUN_CONTEXT.md`의 정책이 커밋을 허용할 때만 커밋한다.
-- push, release, production deploy는 RUN_CONTEXT와 INBOX가 모두 명시적으로 허용할 때만 실행한다.
-
-## 10. STATUS 기록 템플릿
-
-각 바퀴 종료 시 다음 정보를 남긴다.
-
-- 상태: PASS | FAIL | BLOCKED
-- 목표: 이번에 완성한 수직 기능
-- 변경: 파일과 사용자 관점의 변화
-- 검증: 실행 명령, 종료 코드, 핵심 결과
-- Wiki 근거: 읽거나 갱신한 관련 문서
-- 위험/잔여: 아직 확인하지 못한 것
-- 다음 목표: 다음 계획 작업, 선택된 자율 개선 1개, 또는 `none`
-- 자율 평가: 증거, 후보, 선택/미선택 근거
-- 프로젝트 상태: ACTIVE | PROJECT_COMPLETE | PAUSED
-- 커밋: SHA 또는 미커밋 사유
+Start with `PASS`, `SKIP`, `BLOCKED`, or `FAIL`.
+Report the goal, task source, changed files, verification evidence, RUN_STATE transition/run_id, checkpoint/commit if any, and next action. Never report PASS from inference alone.

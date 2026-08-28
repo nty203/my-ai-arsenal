@@ -122,22 +122,23 @@ Remote continuous의 이식 가능한 기준본은 `assets/remote/browser-driver
 예약 시간/주기가 사용자 요청에 있으면 파일럿 PASS 후 ChatGPT Automation을 생성한다.
 시간 정보가 없으면 Automation을 임의 생성하지 않고 `scheduler: READY_FOR_SCHEDULE`로 기록한다.
 
-## Phase 4B. Local CLI 모드 설치
+## Phase 4B. Local CLI mode
 
-`assets/local/` 템플릿을 프로젝트에 병합하고 `loop/env.ps1`, `loop/loop.ps1`을 준비한다.
-설치된 CLI를 `Get-Command`와 `--help` 같은 비파괴 명령으로 확인한다. 명령 구문은 현재 설치된 CLI help에서 검증한 뒤 `AGENT_CMD`를 작성한다.
+Merge `assets/local/` into the project and prepare `loop/env.ps1` plus `loop/loop.ps1`. Verify the installed CLI with non-mutating `Get-Command`, `--help`, or equivalent evidence before writing `AGENT_CMD`.
 
-CLI 우선순위는 사용자 지정 > 기존 EXECUTION 설정 > 검증 가능한 기본 후보 순이다.
-기본 후보는 Codex, Claude, Gemini, agy이며 이것은 품질 순위가 아니라 결정적 fallback 순서다.
+CLI preference remains: explicit user choice > existing EXECUTION selection > verified fallback candidate. Safe default shapes are Codex `exec`, Claude print mode with edit permission, Gemini prompt mode with `auto_edit`, and agy print mode with `accept-edits`; never use bypass/yolo defaults.
 
-안전 기본값:
-- Codex: `exec` 기반 non-interactive + workspace-write 수준. sandbox 우회 금지.
-- Claude: `-p/--print` 기반 + edit 허용 permission mode. bypassPermissions 금지.
-- Gemini: `-p/--prompt` 기반 + `auto_edit`. yolo 금지.
-- agy: `--print` 기반 + `--mode accept-edits`. dangerously-skip-permissions 금지.
+Local CLI now uses the same persistent state contract as ChatGPT Remote:
+- `loop/RUN_STATE.md` is the authoritative active-run/project-completion record.
+- Each iteration and retry launches a fresh headless CLI session.
+- A retry after a crashed/failed process must recover the exact existing `run_id` and `active_task`; it must not create a replacement task.
+- The runner refuses an already-active RUN_STATE by default. `loop.ps1 -RecoverExisting` is only for an explicitly verified orphaned/stale run after the old CLI process is known to be gone.
+- Every accepted session must publish a changed terminal `last_result` and leave RUN_STATE out of RUNNING/RECOVERING. Missing terminal handshakes are failures even when the CLI process exits 0.
+- `STOP` is graceful: do not kill the active CLI process; finish that iteration and block the next one.
+- `PROJECT_COMPLETE`, `PAUSED`, and `CIRCUIT_OPEN` prevent new sessions.
+- The outer runner independently re-runs its registered Quality Gates after a PASS and converts a post-session gate failure to a runner-level FAIL instead of starting unrelated work.
 
-에이전트 프롬프트는 프로젝트의 `loop/PROMPT.md`를 전부 읽고 정확히 한 바퀴만 수행하도록 한다.
-`loop.ps1`은 매 attempt마다 새 CLI 세션을 시작하고 Quality Gate, STOP, lock, retry, circuit breaker를 관리한다.
+The reusable regression test is `skills/autonomous-dev-loop/tests/cli-loop-state-machine.ps1`; it covers fresh PASS, crash-to-exact-recovery, missing terminal handoff, and explicit existing-run recovery.
 
 ## Project completion gate
 

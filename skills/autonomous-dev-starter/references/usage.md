@@ -56,3 +56,7 @@ READY 사용자 작업은 자동 생성 작업보다 항상 우선한다. 이미
 각 작업은 새 ChatGPT 채팅에서 실행될 수 있다. 대화 기억 대신 `INBOX`, `STATUS`, `RUN_STATE`, Wiki가 프로젝트의 지속 메모리 역할을 한다. 따라서 사용자 의견과 검증 결과가 다음 채팅에도 전달된다.
 
 Remote continuous의 기본 구현은 스킬에 포함된 persistent Chrome DOM 드라이버다. 별도 자동화 프로필로 로그인한 뒤 `loop/browser-driver/browser-ui.ps1 -Action Probe`가 Chat 모드와 `AI Folder Remote` 토큰을 비제출 상태로 확인해야 실제 루프를 시작한다. 루프는 한 브라우저 탭을 재사용하되 작업마다 `/` 새 채팅으로 이동하며, 현재 응답과 RUN_STATE가 모두 끝나기 전에는 다음 채팅을 열지 않는다. 브라우저 검증이 불가능한 환경에서만 기존 Windows 앱 드라이버를 fallback으로 사용한다.
+
+## CLI recovery note
+
+Local CLI mode now keeps the same durable RUN_STATE handoff as Remote mode. Normal runs refuse an already active RUNNING/RECOVERING state. After verifying the old CLI process is no longer running, `loop/loop.ps1 -RecoverExisting` resumes that exact run_id/active_task; retries inside one loop do this automatically after a crashed attempt.

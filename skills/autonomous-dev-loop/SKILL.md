@@ -1,6 +1,6 @@
 ---
 name: autonomous-dev-loop
-description: Set up, upgrade, diagnose, or harden a file-handoff autonomous development loop that launches a fresh headless coding-agent session each iteration. Use for repeated self-healing development across frontend, backend, full-stack, game, CLI, automation, documentation, or data projects, including Quality Gates, bounded retries, circuit breakers, STATUS handoff, Git checkpoints, and LLM Wiki retrieval.
+description: Set up, upgrade, diagnose, or harden a file-handoff autonomous development loop that launches a fresh headless coding-agent session each iteration. Use for repeated self-healing development across frontend, backend, full-stack, game, CLI, automation, documentation, or data projects, including RUN_STATE handshakes, exact-run recovery, Quality Gates, bounded retries, circuit breakers, STATUS handoff, VCS checkpoints, and LLM Wiki retrieval.
 ---
 
 # Autonomous Development Loop
@@ -14,22 +14,27 @@ Build a generic loop whose project-specific behavior comes from configuration, n
 3. Inspect VCS status and preserve unrelated user changes.
 4. Inspect existing loop, design, status, feedback, logs, tests, and Wiki structure.
 5. If the loop exists, merge surgically; do not overwrite project decisions.
-6. If it does not exist, copy the files under `assets/template/` into the target root.
-7. Read `references/project-profiles.md` and select the narrowest matching profile.
-8. Set AGENT_CMD, QUALITY_COMMANDS, timeouts, retry limits, VCS mode, and safety policy in env.ps1.
-9. Fill DESIGN with stable purpose and constraints; fill STATUS with current evidence and one next task.
-10. Keep INBOX for user-owned priority instructions.
-11. Run `powershell -File loop/loop.ps1 -PreflightOnly`.
-12. Parse PowerShell files and run the VCS-appropriate status/whitespace checks.
-13. Pilot with exactly two fresh-session iterations before allowing an unbounded run; inspect both logs and tune timeout/turn values from observed duration rather than guesswork.
-14. Record learned architecture or failure rules in the project's Wiki, index, and audit log.
-15. Commit only the files changed for this loop setup when the detected VCS and policy allow it.
+6. If it does not exist, copy the files under `assets/template/` into the target root, including `loop/EXECUTION.md`, `loop/RUN_STATE.md`, and `loop/PROJECTS.md`.
+7. If upgrading an older CLI loop, merge those state/control files without erasing an active run.
+8. Read `references/project-profiles.md` and select the narrowest matching profile.
+9. Set AGENT_CMD, QUALITY_COMMANDS, timeouts, retry limits, VCS mode, and safety policy in env.ps1.
+10. Fill DESIGN with stable purpose and constraints; fill STATUS with current evidence and one next task.
+11. Keep INBOX for user-owned priority instructions.
+12. Run `powershell -File loop/loop.ps1 -PreflightOnly`.
+13. Parse PowerShell files and run the VCS-appropriate status/whitespace checks.
+14. Pilot with exactly two fresh-session iterations before allowing an unbounded run; inspect start handshake, terminal handshake, and recovery behavior in both logs.
+15. Run `tests/cli-loop-state-machine.ps1` when modifying the reusable template.
+16. Record learned architecture or failure rules in the project's Wiki, index, and audit log.
+17. Commit only the files changed for this loop setup when the detected VCS and policy allow it.
 
 ## Required invariants
 
 - Complete one verifiable vertical slice per iteration.
 - Treat test, build, or observed behavior as completion evidence.
 - Launch every iteration and retry as a fresh headless session; persistent memory lives in files, not the prior conversation/session.
+- Use `RUN_STATE.md` as the authoritative active-run record. A retry of a RUNNING/RECOVERING iteration must preserve the exact run_id and active_task.
+- Refuse an already-active RUN_STATE by default; `-RecoverExisting` is allowed only after confirming the old CLI process is gone.
+- Require a changed terminal `last_result` and a non-active state before accepting a CLI session as complete.
 - Bound retries and stop after repeated failures with a circuit breaker.
 - Treat STOP as graceful: if it appears during an active agent session, let that session finish and prevent the next retry/iteration instead of killing the current work.
 - Hold an exclusive lock to prevent duplicate loops.
@@ -56,6 +61,7 @@ Require all of the following before reporting completion:
 - PreflightOnly exits 0 for the detected Git or SVN working copy.
 - Runtime, logs, lock, and STOP paths are excluded from version control according to that VCS.
 - A simulated failing command produces a non-zero result without deleting user changes.
+- The state-machine regression test proves fresh PASS, crash-to-exact-recovery, missing-terminal-handshake failure, and explicit existing-run recovery.
 - Configuration documents at least one relevant Quality Gate command.
 - Two fresh-session pilot iterations have readable logs and no retry storm, duplicate runner, or unfinished handoff.
 - README or equivalent usage surface explains the new reusable loop.

@@ -2,6 +2,7 @@
 # autonomous-dev-starter fills AGENT_CMD and QUALITY_COMMANDS from verified local evidence.
 
 $PROJECT_PROFILE = "auto"
+$VCS_PREFERENCE = "auto"  # auto | git | svn
 $AGENT_CMD = ""  # REQUIRED: verified non-interactive CLI command
 $SELECTED_CLI = "auto"  # codex | claude | gemini | agy | custom
 
@@ -14,9 +15,8 @@ $RETRY_BASE_SECONDS = 10
 $MAX_CONSECUTIVE_FAILURES = 2
 
 # Only commands that already exist in the target project belong here.
-$QUALITY_COMMANDS = @(
-    'git diff --check'
-)
+$QUALITY_COMMANDS = @()
+# Git receives `git diff --check` automatically when this stays empty; SVN keeps its own registered gates.
 
 # Optional tool locations for Task Scheduler or constrained shells.
 $EXTRA_PATHS = @()

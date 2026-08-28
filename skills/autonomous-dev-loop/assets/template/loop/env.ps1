@@ -2,6 +2,7 @@
 # Customize this file per project; reuse loop.ps1 and PROMPT.md unchanged.
 
 $PROJECT_PROFILE = "auto"  # auto | frontend | backend | fullstack | game | cli | docs | custom
+$SELECTED_CLI = "agy"      # codex | claude | gemini | agy | custom; keep aligned with AGENT_CMD
 $VCS_PREFERENCE = "auto"   # auto | git | svn; use explicit mode only when a project is intentionally nested in another VCS
 $AGENT_CMD = 'agy --prompt-file "loop\PROMPT.md"'
 

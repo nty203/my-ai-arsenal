@@ -55,3 +55,11 @@
 - poll마다 `healthy`를 append하지 않는다. 상태 전환, task/run_id 변화, child 재시작, 오류, 주기적 요약만 기록한다.
 - 실시간 heartbeat는 작은 JSON/status 파일에 덮어쓰고, 사람이 읽는 로그는 transition 중심으로 유지한다.
 - 장기 실행 로그는 날짜 또는 크기 기준으로 회전시켜 최근 두 iteration을 쉽게 검토할 수 있게 한다.
+
+## 9. Local CLI state parity
+
+- Local CLI uses the same RUN_STATE facts as Remote: active task, run_id, heartbeat, failure count, circuit, and project completion.
+- A retry launched by the same runner is a fresh CLI session but must recover the exact active run/task when RUN_STATE remains RUNNING/RECOVERING.
+- A newly started runner refuses an existing active state by default; `-RecoverExisting` is an operator recovery path, not a normal start mode.
+- CLI process exit code 0 is not completion evidence by itself. The runner requires a changed terminal `last_result` and a non-active RUN_STATE, then re-runs registered Quality Gates.
+- If independent post-session gates fail, stop instead of allowing the next unrelated task.

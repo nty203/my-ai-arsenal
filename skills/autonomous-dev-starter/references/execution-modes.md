@@ -25,4 +25,4 @@ Current supported command shapes must be verified from each installed CLI help b
 - Gemini: non-interactive `gemini -p`; use `approval-mode auto_edit`, never yolo by default.
 - agy: non-interactive `agy --print`; use `--mode accept-edits`, never dangerously-skip-permissions by default.
 
-The generated prompt should tell the CLI to read `loop/PROMPT.md` completely and execute exactly one iteration. The orchestrator launches a fresh CLI session per attempt.
+The generated prompt should tell the CLI to read `loop/PROMPT.md` completely and execute exactly one iteration. The orchestrator launches a fresh CLI session per attempt. `RUN_STATE.md` is shared with Remote mode: retries recover the exact active run/task, a normal fresh start refuses an existing RUNNING/RECOVERING state, and completion is accepted only after a changed terminal `last_result`. Use `-RecoverExisting` only after confirming the previous CLI process is gone.
